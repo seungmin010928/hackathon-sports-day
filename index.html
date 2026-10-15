@@ -151,10 +151,12 @@
   #total-table th { white-space: nowrap; }
   #total-table th, #total-table td { padding: 8px 4px; word-break: keep-all; overflow-wrap: anywhere; }
   #total-table tbody tr { background: var(--card); }
+  #total-table tbody td { font-weight: 700; }
   #total-table tbody tr.moving { position: relative; z-index: 2; }
   #total-table tbody td { transition: background-color .4s; }
   #total-table tbody tr.changed td { background: #fff3c4; }
   #total-table tbody tr.rising td { background: #cfe0ff; box-shadow: 0 6px 12px -6px rgba(31, 111, 235, .6); }
+  #total-table .gap { display: block; font-size: 12px; font-weight: 600; color: var(--bad); white-space: nowrap; line-height: 1.3; }
   #total-table td.bump { color: var(--accent); font-weight: 800; }
   .delta {
     display: inline-block;
@@ -184,13 +186,26 @@
   .move.down { color: #fff; background: var(--bad); }
   @keyframes badge-in { 0% { transform: scale(0); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
   tr.first td { font-weight: 700; }
-  tr.first td.place { color: var(--gold); }
+  /* 1~3위 금·은·동 표시 */
+  .medal {
+    display: inline-block;
+    min-width: 36px;
+    padding: 0 6px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-weight: 700;
+    line-height: 24px;
+    text-align: center;
+  }
+  .medal.m1 { background: #f7e08a; border-color: #d4a72c; color: #6b4e00; }
+  .medal.m2 { background: #e3e7ec; border-color: #a7b0ba; color: #3f4a55; }
+  .medal.m3 { background: #f0d2b6; border-color: #c08552; color: #6b3b12; }
   .tie { font-size: 12px; color: var(--muted); margin-left: 4px; }
   #total-table .tie { display: block; margin-left: 0; white-space: nowrap; line-height: 1.2; }
   .event-block { padding: 12px 0; border-bottom: 1px solid var(--line); }
   .event-block:last-child { border-bottom: none; }
   .event-block ol { margin: 0; padding: 0; list-style: none; }
-  .event-block li { display: flex; justify-content: space-between; padding: 2px 0; }
+  .event-block li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
   .missing { color: var(--muted); font-size: 14px; margin-top: 4px; }
 </style>
 </head>
@@ -766,6 +781,17 @@
     return totals;
   }
 
+  // 순위 칸 채우기: 점수가 있는 1~3위는 금·은·동 색
+  function medalClass(place, hasScore) {
+    return hasScore && place >= 1 && place <= 3 ? 'medal m' + place : 'medal';
+  }
+
+  function fillPlace(cell, place, tied, total) {
+    cell.textContent = '';
+    cell.appendChild(el('span', { className: medalClass(place, total > 0), text: place ? place + '위' : '-' }));
+    if (place && tied) cell.appendChild(el('span', { className: 'tie', text: '공동' }));
+  }
+
   function renderRank() {
     const box = $('total-table');
     box.textContent = '';
@@ -773,16 +799,19 @@
       box.appendChild(el('p', { className: 'empty', text: '등록된 반이 없어요.' }));
     } else {
       const totals = computeTotals();
+      const top = totals[0].total; // 1등 총점
       const tbody = el('tbody');
       totals.forEach(t => {
-        const placeCell = el('td', { className: 'place', text: t.place + '위' });
-        if (t.tied) placeCell.appendChild(el('span', { className: 'tie', text: '공동' }));
+        const placeCell = el('td', { className: 'place' });
+        fillPlace(placeCell, t.place, t.tied, t.total);
         tbody.appendChild(el('tr', { className: t.place === 1 && t.total > 0 ? 'first' : '', 'data-id': t.id }, [
           placeCell,
           el('td', { className: 'name', text: t.name }),
           el('td', { className: 'num pts-event', text: t.eventPts }),
           el('td', { className: 'num pts-bonus', text: t.bonusPts }),
-          el('td', { className: 'num pts-total', text: t.total + '점' })
+          el('td', { className: 'num pts-total', text: t.total + '점' }, [
+            top > t.total ? el('span', { className: 'gap', text: '(-' + (top - t.total) + '점)' }) : null
+          ])
         ]));
       });
       box.appendChild(el('table', null, [
@@ -812,7 +841,10 @@
         const ol = el('ol');
         entered.forEach(cId => {
           ol.appendChild(el('li', null, [
-            el('span', { text: res[cId] + '등 ' + className(cId) }),
+            el('span', null, [
+              el('span', { className: medalClass(res[cId], true), text: res[cId] + '등' }),
+              document.createTextNode(' ' + className(cId))
+            ]),
             el('span', { className: 'pts', text: pointsFor(res[cId]) + '점' })
           ]));
         });
@@ -857,19 +889,18 @@
       .sort((x, y) => before(y).total - before(x).total);
     const finalHTML = rows.map(r => r.innerHTML);
     const finalClass = rows.map(r => r.className);
-    const placeCell = (cell, place, tied) => {
-      cell.textContent = place ? place + '위' : '-';
-      if (place && tied) cell.appendChild(el('span', { className: 'tie', text: '공동' }));
-    };
 
     // 0단계: 이전 순위·점수로 글자를 바꾼다
     rows.forEach(r => {
       const a = before(r.dataset.id);
       r.className = '';
-      placeCell(r.querySelector('.place'), a.place, a.tied);
+      fillPlace(r.querySelector('.place'), a.place, a.tied, a.total);
       r.querySelector('.pts-event').firstChild.nodeValue = a.eventPts;
       r.querySelector('.pts-bonus').firstChild.nodeValue = a.bonusPts;
       r.querySelector('.pts-total').firstChild.nodeValue = a.total + '점';
+      // 1등과의 차이는 애니메이션이 끝난 뒤에 보여준다 (자리는 차지해서 줄 높이는 그대로)
+      const gap = r.querySelector('.gap');
+      if (gap) gap.style.visibility = 'hidden';
     });
     // 글자를 바꾼 뒤의 줄 높이로, 이전 순서대로 쌓았을 때의 자리를 계산해서 옮겨 놓는다
     const box = {};
@@ -921,7 +952,7 @@
       rows.forEach((r, i) => {
         const oldIdx = oldOrder.indexOf(r.dataset.id);
         if (oldIdx > i) r.classList.add('moving', 'rising');
-        placeCell(r.querySelector('.place'), now[r.dataset.id].place, now[r.dataset.id].tied);
+        fillPlace(r.querySelector('.place'), now[r.dataset.id].place, now[r.dataset.id].tied, now[r.dataset.id].total);
         r.style.transition = 'transform ' + MOVE_MS + 'ms cubic-bezier(.65, 0, .35, 1)';
         r.style.transform = '';
       });
