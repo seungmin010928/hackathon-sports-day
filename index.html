@@ -95,6 +95,18 @@
     cursor: pointer;
     padding: 4px 8px;
   }
+  .notice {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    background: var(--accent-soft);
+    font-size: 14px;
+  }
+  .notice b { font-size: 15px; }
   .msg { min-height: 0; margin: 8px 0 0; font-size: 14px; }
   .msg.err { color: var(--bad); }
   .msg.ok { color: var(--good); }
@@ -109,8 +121,31 @@
   }
   ul.items li:last-child { border-bottom: none; }
   ul.items li > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .event-label { display: flex; align-items: center; }
+  .event-label { display: flex; align-items: center; flex: 1; min-width: 0; overflow-wrap: anywhere; }
   button.del { flex: none; white-space: nowrap; }
+  button.handle {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    margin-right: 6px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: grab;
+    touch-action: none;
+  }
+  button.handle:active { cursor: grabbing; }
+  #event-list li { background: var(--card); }
+  #event-list li.dragging {
+    position: relative;
+    z-index: 5;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .18);
+  }
+  #event-list li.dragging .handle { color: var(--accent); }
+  body.no-select { user-select: none; -webkit-user-select: none; }
   .order {
     display: inline-block;
     flex: none;
@@ -125,6 +160,49 @@
     line-height: 22px;
     text-align: center;
   }
+  .bonus-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 20px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--line);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .bonus-sum { font-size: 13px; font-weight: 600; color: var(--muted); }
+  ul.bonus-list { margin-top: 0; }
+  ul.bonus-list li { gap: 10px; padding: 8px 0; }
+  ul.items li > span.bonus-class {
+    flex: none;
+    min-width: 44px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 26px;
+    text-align: center;
+  }
+  .bonus-reason { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .bonus-pts { flex: none; color: var(--good); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bonus-pts.minus, #total-table td.pts-bonus.minus { color: var(--bad); }
+  .seg-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  button.seg {
+    flex: 1;
+    padding: 10px 4px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button.seg.plus.on { background: var(--good); border-color: var(--good); color: #fff; }
+  button.seg.minus.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+  button.btn.minus { background: var(--bad); border-color: var(--bad); }
   .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
   .rank-row {
     display: grid;
@@ -237,7 +315,7 @@
 
     <div class="card">
       <h2>종목</h2>
-      <p class="hint">예: 축구, 피구, 계주</p>
+      <p class="hint">예: 축구, 피구, 계주 · 왼쪽 ☰를 끌어서 순서를 바꿀 수 있어요.</p>
       <form class="row" id="event-form">
         <input id="event-name" placeholder="종목 이름" maxlength="20" autocomplete="off">
         <button class="btn" type="submit">추가</button>
@@ -398,6 +476,7 @@
   function showTab(name) {
     if (name === currentTab()) return;
     if (currentTab() === 'input' && !okToLeaveInput()) return;
+    if (name === 'input') pickNextEvent();
     document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
     document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + name));
     renderAll();
@@ -494,6 +573,67 @@
     renderAll();
   }
 
+  // 종목 순서 바꾸기: from번째 종목을 to번째 자리로
+  function moveEvent(from, to) {
+    if (to < 0 || to >= state.events.length || to === from) return;
+    const moved = state.events.splice(from, 1)[0];
+    state.events.splice(to, 0, moved);
+    saveState();
+    showMsg($('event-msg'), 'ok', [moved.name + ' 종목을 ' + (to + 1) + '종목으로 옮겼어요.']);
+    renderAll();
+    // 키보드로 계속 옮길 수 있게 옮긴 종목의 손잡이에 다시 초점
+    document.querySelectorAll('#event-list li')[to].querySelector('.handle').focus();
+  }
+
+  // 손잡이를 끌어서 옮기기 (마우스·손가락 모두)
+  function startEventDrag(e, li, from) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const items = Array.from(document.querySelectorAll('#event-list li'));
+    const mids = items.map(x => { const r = x.getBoundingClientRect(); return r.top + window.scrollY + r.height / 2; });
+    const h = li.getBoundingClientRect().height;
+    const startY = e.pageY;
+    let to = from;
+    handle.setPointerCapture(e.pointerId);
+    li.classList.add('dragging');
+    document.body.classList.add('no-select');
+    items.forEach(x => { if (x !== li) x.style.transition = 'transform .15s'; });
+
+    const onMove = ev => {
+      const dy = ev.pageY - startY;
+      li.style.transform = 'translateY(' + dy + 'px)';
+      // 끌고 있는 종목의 가운데가 다른 종목의 가운데를 넘으면 자리를 바꾼다
+      const center = mids[from] + dy;
+      to = from;
+      mids.forEach((m, k) => {
+        if (k < from && center < m) to = Math.min(to, k);
+        if (k > from && center > m) to = Math.max(to, k);
+      });
+      items.forEach((x, k) => {
+        if (k === from) return;
+        let shift = 0;
+        if (from < to && k > from && k <= to) shift = -h;
+        if (from > to && k < from && k >= to) shift = h;
+        x.style.transform = shift ? 'translateY(' + shift + 'px)' : '';
+      });
+      // 화면 끝에 가까우면 자동으로 스크롤
+      if (ev.clientY < 60) window.scrollBy(0, -12);
+      else if (ev.clientY > window.innerHeight - 60) window.scrollBy(0, 12);
+    };
+    const onEnd = ev => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onEnd);
+      handle.removeEventListener('pointercancel', onEnd);
+      document.body.classList.remove('no-select');
+      if (ev.type === 'pointerup' && to !== from) moveEvent(from, to);
+      else renderSetup();
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onEnd);
+    handle.addEventListener('pointercancel', onEnd);
+  }
+
   function renderSetup() {
     const cl = $('class-list');
     cl.textContent = '';
@@ -510,10 +650,18 @@
     state.events.forEach((ev, i) => {
       const del = el('button', { className: 'del', type: 'button', text: '삭제' });
       del.addEventListener('click', () => deleteEvent(ev.id));
-      evl.appendChild(el('li', null, [
+      const handle = el('button', { className: 'handle', type: 'button', text: '☰', 'aria-label': ev.name + ' 순서 옮기기 (끌어서 옮기거나 위아래 화살표 키)' });
+      const li = el('li', null, [
+        handle,
         el('span', { className: 'event-label' }, [el('span', { className: 'order', text: (i + 1) + '종목' }), el('span', { text: ev.name })]),
         del
-      ]));
+      ]);
+      handle.addEventListener('pointerdown', e => startEventDrag(e, li, i));
+      handle.addEventListener('keydown', e => {
+        if (e.key === 'ArrowUp') { e.preventDefault(); moveEvent(i, i - 1); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); moveEvent(i, i + 1); }
+      });
+      evl.appendChild(li);
     });
   }
 
@@ -546,6 +694,38 @@
   });
 
   // ---------- 화면 ②: 결과 입력 ----------
+  // ---------- 다음에 입력할 종목 자동 선택 ----------
+  let inputNotice = null; // 결과 입력 화면 위쪽 안내
+
+  function hasResult(eventId) {
+    const r = state.results[eventId];
+    return !!r && Object.keys(r).length > 0;
+  }
+
+  function eventLabel(eventId) {
+    const i = state.events.findIndex(e => e.id === eventId);
+    return (i + 1) + '종목 · ' + state.events[i].name;
+  }
+
+  // 결과 입력 화면에 들어올 때: 지금 종목이 이미 저장돼 있으면 결과가 없는 가장 앞 종목으로
+  function pickNextEvent() {
+    inputNotice = null;
+    if (state.classes.length === 0 || state.events.length === 0) return;
+    const cur = state.events.some(e => e.id === currentEventId) ? currentEventId : null;
+    const done = state.events.filter(e => hasResult(e.id)).length;
+    if (cur && !hasResult(cur)) { // 아직 입력 중인 종목은 그대로
+      inputNotice = { next: cur, done: done };
+      return;
+    }
+    const next = state.events.find(e => !hasResult(e.id));
+    if (next) {
+      inputNotice = { prev: cur, next: next.id, done: done };
+      currentEventId = next.id;
+    } else {
+      inputNotice = { allDone: true, done: done };
+    }
+  }
+
   function renderInput() {
     const card = $('input-card');
     card.textContent = '';
@@ -573,8 +753,22 @@
     select.addEventListener('change', () => {
       if (!okToLeaveInput()) { select.value = currentEventId; return; }
       currentEventId = select.value;
+      inputNotice = null;
       renderInput();
     });
+    if (inputNotice) {
+      const total = state.events.length;
+      const lines = [];
+      if (inputNotice.allDone) {
+        lines.push(el('b', { text: '모든 종목(' + total + '개)의 결과가 입력됐어요.' }));
+        lines.push(el('span', { text: '고칠 종목이 있으면 아래에서 골라 주세요.' }));
+      } else {
+        if (inputNotice.prev) lines.push(el('span', { text: '✓ ' + eventLabel(inputNotice.prev) + ' 결과는 저장되어 있어요.' }));
+        lines.push(el('b', { text: '이번 차례: ' + eventLabel(inputNotice.next) }));
+        lines.push(el('span', { text: '입력 완료 ' + inputNotice.done + ' / ' + total + '종목 · 다른 종목은 아래에서 바꿀 수 있어요.' }));
+      }
+      card.appendChild(el('div', { className: 'notice' }, lines));
+    }
     card.appendChild(select);
 
     const saved = state.results[currentEventId] || {};
@@ -658,7 +852,10 @@
       }
       state.results[currentEventId] = entries;
       if (saveState()) {
-        showMsg(msg, 'ok', [evName + ' 결과를 저장했어요. (' + Object.keys(entries).length + '개 반)']);
+        inputNotice = null;
+        const notice = card.querySelector('.notice');
+        if (notice) notice.remove();
+        showMsg(msg, 'ok', [evName + ' 결과를 저장했어요. (' + Object.keys(entries).length + '개 반)', '③ 순위표에서 바뀐 순위를 확인해 보세요.']);
       }
     });
 
@@ -678,6 +875,12 @@
   }
 
   // ---------- 화면 ②: 특별 점수 ----------
+  let bonusMode = 'plus'; // 'plus' = 가산점, 'minus' = 감점 (다시 그려도 고른 것 유지)
+
+  function signed(n) {
+    return (n > 0 ? '+' : '') + n;
+  }
+
   function renderBonus() {
     const card = $('bonus-card');
     card.textContent = '';
@@ -688,7 +891,7 @@
     }
     card.appendChild(el('p', {
       className: 'hint',
-      text: '응원, 질서 지키기처럼 종목 말고 따로 주는 점수예요. 1점부터 ' + MAX_BONUS + '점까지 줄 수 있고, 반 총점에 더해져요.'
+      text: '종목 말고 따로 주는 점수예요. 응원처럼 잘한 일은 가산점, 질서 위반처럼 잘못한 일은 감점으로 1점부터 ' + MAX_BONUS + '점까지 줄 수 있어요.'
     }));
 
     const select = el('select', { 'aria-label': '특별 점수 받을 반' });
@@ -699,6 +902,23 @@
     points.style.width = '88px';
     points.style.flex = 'none';
     const addBtn = el('button', { className: 'btn', type: 'submit', text: '추가' });
+
+    // 가산점 / 감점 고르기
+    const plusBtn = el('button', { type: 'button', className: 'seg plus', text: '+ 가산점' });
+    const minusBtn = el('button', { type: 'button', className: 'seg minus', text: '− 감점' });
+    const setMode = mode => {
+      bonusMode = mode;
+      plusBtn.classList.toggle('on', mode === 'plus');
+      minusBtn.classList.toggle('on', mode === 'minus');
+      plusBtn.setAttribute('aria-pressed', String(mode === 'plus'));
+      minusBtn.setAttribute('aria-pressed', String(mode === 'minus'));
+      reason.placeholder = mode === 'plus' ? '이유 (예: 응원)' : '이유 (예: 지각)';
+      addBtn.textContent = mode === 'plus' ? '추가' : '감점';
+      addBtn.classList.toggle('minus', mode === 'minus');
+    };
+    plusBtn.addEventListener('click', () => setMode('plus'));
+    minusBtn.addEventListener('click', () => setMode('minus'));
+    setMode(bonusMode);
     const msg = el('div', { className: 'msg' });
 
     // 숫자만, 최대 점수를 넘으면 입력 전 값으로 되돌린다
@@ -717,6 +937,7 @@
     reason.addEventListener('input', () => reason.classList.remove('bad'));
 
     const form = el('form', null, [
+      el('div', { className: 'seg-row' }, [plusBtn, minusBtn]),
       select,
       el('div', { className: 'row' }, [reason, points, addBtn])
     ]);
@@ -725,34 +946,43 @@
       e.preventDefault();
       const errors = [];
       const why = reason.value.trim().replace(/\s+/g, ' ');
-      if (why === '') { reason.classList.add('bad'); errors.push('이유를 적어 주세요. (예: 응원)'); }
+      if (why === '') { reason.classList.add('bad'); errors.push('이유를 적어 주세요. (예: ' + (bonusMode === 'plus' ? '응원' : '지각') + ')'); }
       const p = points.value.trim();
       if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > MAX_BONUS) {
         points.classList.add('bad');
         errors.push('점수는 1부터 ' + MAX_BONUS + '까지의 자연수로 적어 주세요.');
       }
       if (errors.length > 0) { showMsg(msg, 'err', errors); return; }
-      state.bonuses.push({ id: newId('b'), classId: select.value, reason: why, points: Number(p) });
+      const value = bonusMode === 'plus' ? Number(p) : -Number(p);
+      state.bonuses.push({ id: newId('b'), classId: select.value, reason: why, points: value });
       saveState();
       renderBonus(); renderRank();
-      showMsg($('bonus-card').querySelector('.msg'), 'ok', [className(select.value) + '에 ' + why + ' ' + p + '점을 줬어요.']);
+      showMsg($('bonus-card').querySelector('.msg'), 'ok', [className(select.value) + (value > 0 ? '에 ' + why + ' ' + p + '점을 더했어요.' : '에서 ' + why + ' ' + p + '점을 뺐어요.')]);
     });
     card.appendChild(form);
     card.appendChild(msg);
 
-    const list = el('ul', { className: 'items' });
-    const shown = state.bonuses.filter(b => className(b.classId) !== '');
+    // 준 특별 점수 목록: 방금 준 것이 맨 위
+    const shown = state.bonuses.filter(b => className(b.classId) !== '').slice().reverse();
+    const sum = shown.reduce((acc, b) => acc + b.points, 0);
+    card.appendChild(el('div', { className: 'bonus-head' }, [
+      el('span', { text: '준 특별 점수' }),
+      el('span', { className: 'bonus-sum', text: shown.length + '건 · 합계 ' + signed(sum) + '점' })
+    ]));
+    const list = el('ul', { className: 'items bonus-list' });
     if (shown.length === 0) list.appendChild(el('li', { className: 'empty', text: '아직 준 특별 점수가 없어요.' }));
     shown.forEach(b => {
-      const del = el('button', { className: 'del', type: 'button', text: '삭제' });
+      const del = el('button', { className: 'del', type: 'button', text: '삭제', 'aria-label': className(b.classId) + ' ' + b.reason + ' 삭제' });
       del.addEventListener('click', () => {
-        if (!confirm(className(b.classId) + ' ' + b.reason + ' ' + b.points + '점을 지울까요?')) return;
+        if (!confirm(className(b.classId) + ' ' + b.reason + ' ' + signed(b.points) + '점을 지울까요?')) return;
         state.bonuses = state.bonuses.filter(x => x.id !== b.id);
         saveState();
         renderBonus(); renderRank();
       });
       list.appendChild(el('li', null, [
-        el('span', { text: className(b.classId) + ' · ' + b.reason + ' · ' + b.points + '점' }),
+        el('span', { className: 'bonus-class', text: className(b.classId) }),
+        el('span', { className: 'bonus-reason', text: b.reason }),
+        el('span', { className: 'bonus-pts' + (b.points < 0 ? ' minus' : ''), text: signed(b.points) + '점' }),
         del
       ]));
     });
@@ -808,7 +1038,7 @@
           placeCell,
           el('td', { className: 'name', text: t.name }),
           el('td', { className: 'num pts-event', text: t.eventPts }),
-          el('td', { className: 'num pts-bonus', text: t.bonusPts }),
+          el('td', { className: 'num pts-bonus' + (t.bonusPts < 0 ? ' minus' : ''), text: t.bonusPts }),
           el('td', { className: 'num pts-total', text: t.total + '점' }, [
             top > t.total ? el('span', { className: 'gap', text: '(-' + (top - t.total) + '점)' }) : null
           ])
