@@ -108,6 +108,23 @@
     border-bottom: 1px solid var(--line);
   }
   ul.items li:last-child { border-bottom: none; }
+  ul.items li > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .event-label { display: flex; align-items: center; }
+  button.del { flex: none; white-space: nowrap; }
+  .order {
+    display: inline-block;
+    flex: none;
+    min-width: 52px;
+    margin-right: 8px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 22px;
+    text-align: center;
+  }
   .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
   .rank-row {
     display: grid;
@@ -126,12 +143,13 @@
   th { font-size: 13px; color: var(--muted); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   #total-table table { table-layout: fixed; }
-  #total-table th:nth-child(1) { width: 23%; }
-  #total-table th:nth-child(2) { width: 30%; }
-  #total-table th:nth-child(3) { width: 14%; }
-  #total-table th:nth-child(4) { width: 13%; }
-  #total-table th:nth-child(5) { width: 20%; }
-  #total-table th, #total-table td { padding: 8px 4px; overflow-wrap: anywhere; }
+  #total-table th:nth-child(1) { width: 19%; }
+  #total-table th:nth-child(2) { width: 22%; }
+  #total-table th:nth-child(3) { width: 21%; }
+  #total-table th:nth-child(4) { width: 20%; }
+  #total-table th:nth-child(5) { width: 18%; }
+  #total-table th { white-space: nowrap; }
+  #total-table th, #total-table td { padding: 8px 4px; word-break: keep-all; overflow-wrap: anywhere; }
   #total-table tbody tr { background: var(--card); }
   #total-table tbody tr.moving { position: relative; z-index: 2; }
   #total-table tbody td { transition: background-color .4s; }
@@ -168,6 +186,7 @@
   tr.first td { font-weight: 700; }
   tr.first td.place { color: var(--gold); }
   .tie { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  #total-table .tie { display: block; margin-left: 0; white-space: nowrap; line-height: 1.2; }
   .event-block { padding: 12px 0; border-bottom: 1px solid var(--line); }
   .event-block:last-child { border-bottom: none; }
   .event-block ol { margin: 0; padding: 0; list-style: none; }
@@ -288,7 +307,14 @@
     }
   }
 
+  // 반 이름 정렬: 숫자는 크기 순서(2 다음 10), 한글은 가나다순
+  const nameOrder = new Intl.Collator('ko', { numeric: true, sensitivity: 'base' });
+  function sortClasses() {
+    state.classes.sort((a, b) => nameOrder.compare(a.name, b.name));
+  }
+
   let state = loadState();
+  sortClasses();
   let currentEventId = null;
 
   function newId(prefix) {
@@ -381,6 +407,7 @@
     const r = checkName(state.classes, input.value, '반');
     if (r.error) { input.classList.add('bad'); showMsg($('class-msg'), 'err', [r.error]); return; }
     state.classes.push({ id: newId('c'), name: r.name });
+    sortClasses();
     saveState();
     input.value = '';
     input.classList.remove('bad');
@@ -465,10 +492,13 @@
     const evl = $('event-list');
     evl.textContent = '';
     if (state.events.length === 0) evl.appendChild(el('li', { className: 'empty', text: '아직 등록된 종목이 없어요.' }));
-    state.events.forEach(ev => {
+    state.events.forEach((ev, i) => {
       const del = el('button', { className: 'del', type: 'button', text: '삭제' });
       del.addEventListener('click', () => deleteEvent(ev.id));
-      evl.appendChild(el('li', null, [el('span', { text: ev.name }), del]));
+      evl.appendChild(el('li', null, [
+        el('span', { className: 'event-label' }, [el('span', { className: 'order', text: (i + 1) + '종목' }), el('span', { text: ev.name })]),
+        del
+      ]));
     });
   }
 
@@ -520,8 +550,8 @@
 
     const select = el('select', { 'aria-label': '종목 선택' });
     select.style.width = '100%';
-    state.events.forEach(ev => {
-      const opt = el('option', { value: ev.id, text: ev.name });
+    state.events.forEach((ev, i) => {
+      const opt = el('option', { value: ev.id, text: (i + 1) + '종목 · ' + ev.name });
       if (ev.id === currentEventId) opt.selected = true;
       select.appendChild(opt);
     });
@@ -758,7 +788,7 @@
       box.appendChild(el('table', null, [
         el('thead', null, [el('tr', null, [
           el('th', { text: '순위' }), el('th', { text: '반' }),
-          el('th', { className: 'num', text: '종목' }), el('th', { className: 'num', text: '특별' }),
+          el('th', { className: 'num', text: '종목 점수' }), el('th', { className: 'num', text: '특별점수' }),
           el('th', { className: 'num', text: '총점' })
         ])]),
         tbody
@@ -801,7 +831,7 @@
 
   function snapshotTotals() {
     const s = {};
-    computeTotals().forEach(t => { s[t.id] = { eventPts: t.eventPts, bonusPts: t.bonusPts, total: t.total, place: t.place }; });
+    computeTotals().forEach(t => { s[t.id] = { eventPts: t.eventPts, bonusPts: t.bonusPts, total: t.total, place: t.place, tied: t.tied }; });
     return s;
   }
 
@@ -825,22 +855,31 @@
     // 이전 순서: 이전 총점으로 다시 줄 세운다
     const oldOrder = state.classes.map(c => c.id)
       .sort((x, y) => before(y).total - before(x).total);
-    const slotTop = rows.map(r => r.offsetTop);
     const finalHTML = rows.map(r => r.innerHTML);
     const finalClass = rows.map(r => r.className);
+    const placeCell = (cell, place, tied) => {
+      cell.textContent = place ? place + '위' : '-';
+      if (place && tied) cell.appendChild(el('span', { className: 'tie', text: '공동' }));
+    };
 
-    // 0단계: 이전 자리, 이전 점수로 보여주기
-    rows.forEach((r, i) => {
-      const id = r.dataset.id;
-      const a = before(id);
+    // 0단계: 이전 순위·점수로 글자를 바꾼다
+    rows.forEach(r => {
+      const a = before(r.dataset.id);
       r.className = '';
-      r.querySelector('.place').textContent = a.place ? a.place + '위' : '-';
-      r.querySelector('.pts-event').textContent = a.eventPts;
-      r.querySelector('.pts-bonus').textContent = a.bonusPts;
-      r.querySelector('.pts-total').textContent = a.total + '점';
-      const oldIdx = oldOrder.indexOf(id);
+      placeCell(r.querySelector('.place'), a.place, a.tied);
+      r.querySelector('.pts-event').firstChild.nodeValue = a.eventPts;
+      r.querySelector('.pts-bonus').firstChild.nodeValue = a.bonusPts;
+      r.querySelector('.pts-total').firstChild.nodeValue = a.total + '점';
+    });
+    // 글자를 바꾼 뒤의 줄 높이로, 이전 순서대로 쌓았을 때의 자리를 계산해서 옮겨 놓는다
+    const box = {};
+    rows.forEach(r => { box[r.dataset.id] = r.getBoundingClientRect(); });
+    const oldTop = {};
+    let y = box[rows[0].dataset.id].top;
+    oldOrder.forEach(id => { oldTop[id] = y; y += box[id] ? box[id].height : 0; });
+    rows.forEach(r => {
       r.style.transition = 'none';
-      r.style.transform = 'translateY(' + (slotTop[oldIdx] - slotTop[i]) + 'px)';
+      r.style.transform = 'translateY(' + (oldTop[r.dataset.id] - box[r.dataset.id].top) + 'px)';
     });
 
     const HOLD_MS = 600, COUNT_MS = 1200, GAP_MS = 300, MOVE_MS = 1200;
@@ -882,7 +921,7 @@
       rows.forEach((r, i) => {
         const oldIdx = oldOrder.indexOf(r.dataset.id);
         if (oldIdx > i) r.classList.add('moving', 'rising');
-        r.querySelector('.place').textContent = now[r.dataset.id].place + '위';
+        placeCell(r.querySelector('.place'), now[r.dataset.id].place, now[r.dataset.id].tied);
         r.style.transition = 'transform ' + MOVE_MS + 'ms cubic-bezier(.65, 0, .35, 1)';
         r.style.transform = '';
       });
