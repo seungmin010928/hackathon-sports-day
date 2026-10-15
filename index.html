@@ -19,6 +19,8 @@
     --gold: #b7860b;
   }
   * { box-sizing: border-box; }
+  /* 자동 스크롤(키보드 이동 등) 때 위에 붙은 제목 줄에 가리지 않게 */
+  html { scroll-padding-top: 130px; }
   body {
     margin: 0;
     background: var(--bg);
@@ -95,6 +97,52 @@
     cursor: pointer;
     padding: 4px 8px;
   }
+  .ev-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  button.ev-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .ev-no {
+    display: inline-block;
+    min-width: 20px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 20px;
+    text-align: center;
+  }
+  .ev-check { color: var(--good); font-weight: 800; }
+  button.ev-chip.done { border-color: #b9dfbf; background: #f1faf2; }
+  button.ev-chip.on { border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(31, 111, 235, .35); }
+  button.ev-chip.on .ev-no { background: #fff; }
+  button.ev-chip.on .ev-check { color: #fff; }
+  .save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin: 12px -16px -16px;
+    padding: 10px 16px 12px;
+    border-top: 1px solid var(--line);
+    border-radius: 0 0 12px 12px;
+    background: var(--card);
+    box-shadow: 0 -6px 14px rgba(0, 0, 0, .06);
+  }
+  .save-bar .msg { margin: 0 0 8px; }
+  .save-bar .msg:empty { display: none; }
+  .save-bar .actions { margin-top: 0; flex-wrap: nowrap; }
+  button.btn.grow { flex: 1; }
+  button.btn:disabled { opacity: .55; cursor: default; }
   .notice {
     display: flex;
     flex-direction: column;
@@ -160,6 +208,22 @@
     line-height: 22px;
     text-align: center;
   }
+  button.fold {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+  }
+  .fold-title { flex: 1; font-size: 18px; font-weight: 700; }
+  .fold-sum { color: var(--muted); font-size: 14px; font-weight: 600; }
+  .fold-arrow { color: var(--accent); font-size: 13px; }
+  .fold-body { margin-top: 12px; }
   .bonus-head {
     display: flex;
     justify-content: space-between;
@@ -280,11 +344,6 @@
   .medal.m3 { background: #f0d2b6; border-color: #c08552; color: #6b3b12; }
   .tie { font-size: 12px; color: var(--muted); margin-left: 4px; }
   #total-table .tie { display: block; margin-left: 0; white-space: nowrap; line-height: 1.2; }
-  .event-block { padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .event-block:last-child { border-bottom: none; }
-  .event-block ol { margin: 0; padding: 0; list-style: none; }
-  .event-block li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
-  .missing { color: var(--muted); font-size: 14px; margin-top: 4px; }
 
   /* ---------- 순위표: 종합운동장 전광판 ---------- */
   .board {
@@ -309,6 +368,7 @@
     background-image: radial-gradient(rgba(255, 255, 255, .07) 1px, transparent 1.5px);
     background-size: 4px 4px;
     pointer-events: none;
+    z-index: 6; /* 고정된 칸 위에도 LED 점 무늬가 보이게 */
   }
   .board-top {
     display: flex;
@@ -361,7 +421,7 @@
   .ticker-dot { padding: 0 18px; color: #ff4040; text-shadow: 0 0 6px #ff4040; font-size: 10px; line-height: 20px; }
   @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
-  .board-hint { position: relative; margin: 10px 0 0; color: #7d8792; font-size: 12px; line-height: 1.5; }
+  .board-hint { position: relative; margin: 10px 0 0; color: #7d8792; font-size: 12px; line-height: 1.5; word-break: keep-all; }
   .board #total-table th {
     color: #8b95a1;
     font-size: 12px;
@@ -402,6 +462,69 @@
   .board .medal.m3 { border-color: #ff9d5c; color: #ff9d5c; text-shadow: 0 0 8px rgba(255, 157, 92, .8); box-shadow: 0 0 8px rgba(255, 157, 92, .3); }
   .board .empty { color: #8b95a1; }
   @media (prefers-reduced-motion: reduce) { .board-live i { animation: none; } }
+
+  /* ---------- 종목별 결과표 ---------- */
+  .ev-scroll { position: relative; margin-top: 8px; overflow-x: auto; }
+  .ev-table { width: 100%; border-collapse: collapse; }
+  .ev-table th, .ev-table td { padding: 8px 4px; border-bottom: 1px solid #1b1f25; text-align: center; }
+  .ev-table thead th { border-bottom: 1px solid #2a2f37; vertical-align: bottom; }
+  .ev-table th.ev-team {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 72px;
+    padding-left: 2px;
+    background: var(--board-bg);
+    color: #fff;
+    font-size: 15px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .ev-table thead th.ev-team { color: #8b95a1; font-size: 12px; }
+  .ev-col { min-width: 58px; color: #c9d1d9; font-size: 13px; font-weight: 700; line-height: 1.3; }
+  .ev-col-no { display: block; color: var(--led); font: 700 11px var(--digital); }
+  .ev-col-name { display: block; word-break: keep-all; }
+  .ev-col.waiting { color: #6b7480; }
+  .ev-col-wait {
+    display: inline-block;
+    margin-top: 2px;
+    padding: 0 6px;
+    border: 1px solid #4a525c;
+    border-radius: 999px;
+    color: #8b95a1;
+    font-size: 10px;
+    line-height: 16px;
+  }
+  /* 진행 중인 종목: LIVE와 같은 빨간 점, 칸 전체를 살짝 밝게 */
+  .ev-col.live { color: #fff; }
+  .ev-col.live, .ev-cell.live { background: rgba(255, 64, 64, .10); }
+  .ev-col-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    padding: 0 6px;
+    border: 1px solid #ff4040;
+    border-radius: 999px;
+    color: #ff6b6b;
+    font-size: 10px;
+    line-height: 16px;
+    white-space: nowrap;
+    box-shadow: 0 0 6px rgba(255, 64, 64, .45);
+  }
+  .ev-col-live i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff4040;
+    box-shadow: 0 0 6px #ff4040;
+    animation: blink 1.2s steps(2, jump-none) infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .ev-col-live i { animation: none; } }
+  .ev-cell { line-height: 1.2; }
+  .ev-cell.none { color: #4a525c; font-size: 16px; }
+  .board .medal.ev-rank { min-width: 30px; padding: 0 4px; font-size: 14px; line-height: 22px; }
+  .ev-pts { display: block; margin-top: 3px; color: #8b95a1; font: 600 11px var(--digital); }
 </style>
 </head>
 <body>
@@ -469,8 +592,10 @@
       <div id="total-table"></div>
       <p class="board-hint">종목 점수: 1등 10점 · 2등 7점 · 3등 5점 · 4등부터 3점<br>총점 = 종목 점수 + 특별점수 · 총점이 같으면 같은 순위</p>
     </div>
-    <div class="card">
-      <h2>종목별 결과</h2>
+    <div class="card board" id="event-board">
+      <div class="board-top">
+        <h2 class="board-title">종목별 결과</h2>
+      </div>
       <div id="event-results"></div>
     </div>
   </section>
@@ -594,7 +719,10 @@
     if (currentTab() === 'input' && hasUnsavedInput()) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  let autoMoveTimer = null; // 저장 후 순위표로 넘어가기 예약
+
   function showTab(name) {
+    if (autoMoveTimer) { clearTimeout(autoMoveTimer); autoMoveTimer = null; }
     if (name === currentTab()) return;
     if (currentTab() === 'input' && !okToLeaveInput()) return;
     if (name === 'input') pickNextEvent();
@@ -819,6 +947,7 @@
   // ---------- 화면 ②: 결과 입력 ----------
   // ---------- 다음에 입력할 종목 자동 선택 ----------
   let inputNotice = null; // 결과 입력 화면 위쪽 안내
+  let justSavedId = null; // 방금 저장한 종목 (✓ 안내는 이 종목일 때만)
 
   function hasResult(eventId) {
     const r = state.results[eventId];
@@ -833,6 +962,8 @@
   // 결과 입력 화면에 들어올 때: 지금 종목이 이미 저장돼 있으면 결과가 없는 가장 앞 종목으로
   function pickNextEvent() {
     inputNotice = null;
+    const saved = justSavedId;
+    justSavedId = null;
     if (state.classes.length === 0 || state.events.length === 0) return;
     const cur = state.events.some(e => e.id === currentEventId) ? currentEventId : null;
     const done = state.events.filter(e => hasResult(e.id)).length;
@@ -842,7 +973,7 @@
     }
     const next = state.events.find(e => !hasResult(e.id));
     if (next) {
-      inputNotice = { prev: cur, next: next.id, done: done };
+      inputNotice = { prev: cur && cur === saved ? cur : null, next: next.id, done: done };
       currentEventId = next.id;
     } else {
       inputNotice = { allDone: true, done: done };
@@ -866,33 +997,44 @@
       text: '등수는 1부터 ' + n + '까지 적어요. 참가하지 않은 반은 비워 두면 돼요. 한 종목 안에서 같은 등수는 한 반만 가질 수 있어요.'
     }));
 
-    const select = el('select', { 'aria-label': '종목 선택' });
-    select.style.width = '100%';
+    // 종목 칩: 끝난 종목은 ✓, 지금 입력하는 종목은 파랗게. 누르면 그 종목으로 바뀐다
+    const chips = el('div', { className: 'ev-chips', role: 'group', 'aria-label': '종목 선택' });
     state.events.forEach((ev, i) => {
-      const opt = el('option', { value: ev.id, text: (i + 1) + '종목 · ' + ev.name });
-      if (ev.id === currentEventId) opt.selected = true;
-      select.appendChild(opt);
-    });
-    select.addEventListener('change', () => {
-      if (!okToLeaveInput()) { select.value = currentEventId; return; }
-      currentEventId = select.value;
-      inputNotice = null;
-      renderInput();
+      const on = ev.id === currentEventId;
+      const chip = el('button', {
+        type: 'button',
+        className: 'ev-chip' + (on ? ' on' : '') + (hasResult(ev.id) ? ' done' : ''),
+        'data-id': ev.id,
+        'aria-pressed': String(on)
+      }, [
+        el('span', { className: 'ev-no', text: String(i + 1) }),
+        el('span', { text: ev.name }),
+        hasResult(ev.id) ? el('span', { className: 'ev-check', text: '✓', 'aria-label': '입력 완료' }) : null
+      ]);
+      chip.addEventListener('click', () => {
+        if (ev.id === currentEventId || !okToLeaveInput()) return;
+        currentEventId = ev.id;
+        inputNotice = null;
+        renderInput();
+      });
+      chips.appendChild(chip);
     });
     if (inputNotice) {
       const total = state.events.length;
       const lines = [];
       if (inputNotice.allDone) {
         lines.push(el('b', { text: '모든 종목(' + total + '개)의 결과가 입력됐어요.' }));
-        lines.push(el('span', { text: '고칠 종목이 있으면 아래에서 골라 주세요.' }));
+        lines.push(el('span', { text: '고칠 종목이 있으면 위에서 눌러 주세요.' }));
       } else {
-        if (inputNotice.prev) lines.push(el('span', { text: '✓ ' + eventLabel(inputNotice.prev) + ' 결과는 저장되어 있어요.' }));
+        if (inputNotice.prev) lines.push(el('span', { text: '✓ ' + eventLabel(inputNotice.prev) + ' 저장 완료' }));
         lines.push(el('b', { text: '이번 차례: ' + eventLabel(inputNotice.next) }));
-        lines.push(el('span', { text: '입력 완료 ' + inputNotice.done + ' / ' + total + '종목 · 다른 종목은 아래에서 바꿀 수 있어요.' }));
+        lines.push(el('span', { text: '입력 완료 ' + inputNotice.done + ' / ' + total + '종목' }));
       }
+      card.appendChild(chips);
       card.appendChild(el('div', { className: 'notice' }, lines));
+    } else {
+      card.appendChild(chips);
     }
-    card.appendChild(select);
 
     const saved = state.results[currentEventId] || {};
     const msg = el('div', { className: 'msg' });
@@ -935,8 +1077,9 @@
 
     const saveBtn = el('button', { className: 'btn', type: 'button', text: '저장' });
     const clearBtn = el('button', { className: 'btn danger', type: 'button', text: '이 종목 결과 지우기' });
-    card.appendChild(el('div', { className: 'actions' }, [saveBtn, clearBtn]));
-    card.appendChild(msg);
+    // 저장 버튼 줄은 화면 아래에 붙어 있어서 반이 많아도 스크롤 없이 누를 수 있다
+    saveBtn.classList.add('grow');
+    card.appendChild(el('div', { className: 'save-bar' }, [msg, el('div', { className: 'actions' }, [saveBtn, clearBtn])]));
 
     saveBtn.addEventListener('click', () => {
       const errors = [];
@@ -976,9 +1119,15 @@
       state.results[currentEventId] = entries;
       if (saveState()) {
         inputNotice = null;
-        const notice = card.querySelector('.notice');
-        if (notice) notice.remove();
-        showMsg(msg, 'ok', [evName + ' 결과를 저장했어요. (' + Object.keys(entries).length + '개 반)', '③ 순위표에서 바뀐 순위를 확인해 보세요.']);
+        justSavedId = currentEventId;
+        renderInput(); // 칩에 ✓ 표시
+        showMsg(card.querySelector('.msg'), 'ok', ['✓ ' + evName + ' 결과를 저장했어요. (' + Object.keys(entries).length + '개 반) 순위표로 이동해요…']);
+        card.querySelector('.save-bar .btn.grow').disabled = true;
+        // 1초 동안 저장 확인 문구를 보여준 뒤 순위표로 (그 사이 다른 탭을 누르면 취소)
+        autoMoveTimer = setTimeout(() => {
+          autoMoveTimer = null;
+          if (currentTab() === 'input') showTab('rank');
+        }, 1000);
       }
     });
 
@@ -998,6 +1147,7 @@
   }
 
   // ---------- 화면 ②: 특별 점수 ----------
+  let bonusOpen = false; // 특별 점수 칸을 펼쳤는지
   let bonusMode = 'plus'; // 'plus' = 가산점, 'minus' = 감점 (다시 그려도 고른 것 유지)
 
   function signed(n) {
@@ -1007,12 +1157,26 @@
   function renderBonus() {
     const card = $('bonus-card');
     card.textContent = '';
-    card.appendChild(el('h2', { text: '특별 점수' }));
     if (state.classes.length === 0) {
+      card.appendChild(el('h2', { text: '특별 점수' }));
       card.appendChild(el('p', { className: 'empty', text: '먼저 ① 반·종목 등록 화면에서 반을 등록해 주세요.' }));
       return;
     }
-    card.appendChild(el('p', {
+
+    // 접었다 펴는 머리줄: 평소에는 건수와 합계만 보인다
+    const given = state.bonuses.filter(b => className(b.classId) !== '');
+    const givenSum = given.reduce((acc, b) => acc + b.points, 0);
+    const fold = el('button', { type: 'button', className: 'fold', 'aria-expanded': String(bonusOpen) }, [
+      el('span', { className: 'fold-title', text: '특별 점수' }),
+      el('span', { className: 'fold-sum', text: given.length + '건 · 합계 ' + signed(givenSum) + '점' }),
+      el('span', { className: 'fold-arrow', text: bonusOpen ? '▲' : '▼' })
+    ]);
+    const body = el('div', { className: 'fold-body' });
+    body.hidden = !bonusOpen;
+    fold.addEventListener('click', () => { bonusOpen = !bonusOpen; renderBonus(); });
+    card.appendChild(fold);
+    card.appendChild(body);
+    body.appendChild(el('p', {
       className: 'hint',
       text: '종목 말고 따로 주는 점수예요. 응원처럼 잘한 일은 가산점, 질서 위반처럼 잘못한 일은 감점으로 1점부터 ' + MAX_BONUS + '점까지 줄 수 있어요.'
     }));
@@ -1082,15 +1246,13 @@
       renderBonus(); renderRank();
       showMsg($('bonus-card').querySelector('.msg'), 'ok', [className(select.value) + (value > 0 ? '에 ' + why + ' ' + p + '점을 더했어요.' : '에서 ' + why + ' ' + p + '점을 뺐어요.')]);
     });
-    card.appendChild(form);
-    card.appendChild(msg);
+    body.appendChild(form);
+    body.appendChild(msg);
 
     // 준 특별 점수 목록: 방금 준 것이 맨 위
     const shown = state.bonuses.filter(b => className(b.classId) !== '').slice().reverse();
-    const sum = shown.reduce((acc, b) => acc + b.points, 0);
-    card.appendChild(el('div', { className: 'bonus-head' }, [
-      el('span', { text: '준 특별 점수' }),
-      el('span', { className: 'bonus-sum', text: shown.length + '건 · 합계 ' + signed(sum) + '점' })
+    body.appendChild(el('div', { className: 'bonus-head' }, [
+      el('span', { text: '준 특별 점수' })
     ]));
     const list = el('ul', { className: 'items bonus-list' });
     if (shown.length === 0) list.appendChild(el('li', { className: 'empty', text: '아직 준 특별 점수가 없어요.' }));
@@ -1109,7 +1271,7 @@
         del
       ]));
     });
-    card.appendChild(list);
+    body.appendChild(list);
   }
 
   // ---------- 화면 ③: 순위표 ----------
@@ -1219,36 +1381,47 @@
       ]));
     }
 
+    // 종목별 결과표: 반(순위 순서) × 종목. 칸에는 등수(금·은·동)와 받은 점수
     const evBox = $('event-results');
     evBox.textContent = '';
-    if (state.events.length === 0) {
-      evBox.appendChild(el('p', { className: 'empty', text: '등록된 종목이 없어요.' }));
+    if (state.events.length === 0 || state.classes.length === 0) {
+      evBox.appendChild(el('p', { className: 'empty', text: state.events.length === 0 ? '등록된 종목이 없어요.' : '등록된 반이 없어요.' }));
       return;
     }
-    state.events.forEach(ev => {
-      const block = el('div', { className: 'event-block' }, [el('h3', { text: ev.name })]);
-      const res = state.results[ev.id] || {};
-      const entered = Object.keys(res).filter(cId => className(cId) !== '')
-        .sort((a, b) => res[a] - res[b]);
-      if (entered.length === 0) {
-        block.appendChild(el('p', { className: 'empty', text: '아직 결과가 없어요.' }));
-      } else {
-        const ol = el('ol');
-        entered.forEach(cId => {
-          ol.appendChild(el('li', null, [
-            el('span', null, [
-              el('span', { className: medalClass(res[cId], true), text: res[cId] + '등' }),
-              document.createTextNode(' ' + className(cId))
-            ]),
-            el('span', { className: 'pts', text: pointsFor(res[cId]) + '점' })
-          ]));
-        });
-        block.appendChild(ol);
-        const missing = state.classes.filter(c => res[c.id] === undefined).map(c => c.name);
-        if (missing.length > 0) block.appendChild(el('p', { className: 'missing', text: '결과 없음: ' + missing.join(', ') }));
-      }
-      evBox.appendChild(block);
+    // 결과가 없는 가장 앞 종목 = 진행 중 (띠 전광판, 결과 입력의 '이번 차례'와 같은 기준). 그 뒤는 대기
+    const live = state.events.find(e => !hasResult(e.id));
+    const liveId = live ? live.id : null;
+    const headRow = el('tr', null, [el('th', { className: 'ev-team', text: '반' })]);
+    state.events.forEach((ev, i) => {
+      const waiting = !hasResult(ev.id);
+      const isLive = ev.id === liveId;
+      headRow.appendChild(el('th', { className: 'ev-col' + (isLive ? ' live' : waiting ? ' waiting' : '') }, [
+        el('span', { className: 'ev-col-no', text: String(i + 1) }),
+        el('span', { className: 'ev-col-name', text: ev.name }),
+        isLive ? el('span', { className: 'ev-col-live' }, [el('i'), document.createTextNode('진행 중')])
+          : waiting ? el('span', { className: 'ev-col-wait', text: '대기' }) : null
+      ]));
     });
+    const body = el('tbody');
+    computeTotals().forEach(t => {
+      const row = el('tr', null, [el('th', { className: 'ev-team', scope: 'row', text: t.name })]);
+      state.events.forEach(ev => {
+        const rank = (state.results[ev.id] || {})[t.id];
+        if (rank === undefined) {
+          row.appendChild(el('td', { className: 'ev-cell none' + (ev.id === liveId ? ' live' : ''), text: '–' }));
+        } else {
+          row.appendChild(el('td', { className: 'ev-cell' }, [
+            el('span', { className: medalClass(rank, true) + ' ev-rank', text: String(rank) }),
+            el('span', { className: 'ev-pts', text: '+' + pointsFor(rank) })
+          ]));
+        }
+      });
+      body.appendChild(row);
+    });
+    evBox.appendChild(el('div', { className: 'ev-scroll' }, [
+      el('table', { className: 'ev-table' }, [el('thead', null, [headRow]), body])
+    ]));
+    evBox.appendChild(el('p', { className: 'board-hint', text: '동그라미 = 등수 · 아래 숫자 = 받은 점수 · – = 결과 없음' }));
   }
 
   // ---------- 순위표 애니메이션 ----------
