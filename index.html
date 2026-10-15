@@ -787,15 +787,17 @@
     const hasData = state.classes.length > 0 || state.events.length > 0;
     if (hasData && !confirm('지금 있는 데이터를 모두 지우고 예시 데이터를 넣을까요?')) return;
     state = emptyState();
+    // 예시 데이터 (모두 가짜 이름) · 계주는 결과를 비워 둬서 직접 입력해 볼 수 있다
     const ids = {};
-    ['1A', '1B', '2A', '2B', '3A'].forEach(n => { ids[n] = newId('c'); state.classes.push({ id: ids[n], name: n }); });
+    ['백호팀', '주작팀', '청룡팀', '현무팀', '황룡팀'].forEach(n => { ids[n] = newId('c'); state.classes.push({ id: ids[n], name: n }); });
     const evs = {};
-    ['축구', '피구', '계주', '줄다리기'].forEach(n => { evs[n] = newId('e'); state.events.push({ id: evs[n], name: n }); });
-    state.results[evs['축구']] = { [ids['1A']]: 1, [ids['1B']]: 2, [ids['2A']]: 3, [ids['2B']]: 4, [ids['3A']]: 5 };
-    state.results[evs['피구']] = { [ids['2A']]: 1, [ids['1A']]: 2, [ids['3A']]: 3 };
-    state.results[evs['계주']] = { [ids['1B']]: 1, [ids['2A']]: 2, [ids['1A']]: 3, [ids['2B']]: 4 };
-    state.bonuses.push({ id: newId('b'), classId: ids['3A'], reason: '응원', points: 5 });
-    state.bonuses.push({ id: newId('b'), classId: ids['2B'], reason: '질서 지키기', points: 3 });
+    ['축구', '피구', '씨름', '계주'].forEach(n => { evs[n] = newId('e'); state.events.push({ id: evs[n], name: n }); });
+    state.results[evs['축구']] = { [ids['주작팀']]: 1, [ids['청룡팀']]: 2, [ids['현무팀']]: 3, [ids['황룡팀']]: 4, [ids['백호팀']]: 5 };
+    state.results[evs['피구']] = { [ids['백호팀']]: 1, [ids['청룡팀']]: 2, [ids['주작팀']]: 3, [ids['현무팀']]: 4, [ids['황룡팀']]: 5 };
+    state.results[evs['씨름']] = { [ids['현무팀']]: 1, [ids['주작팀']]: 2, [ids['청룡팀']]: 3, [ids['황룡팀']]: 4, [ids['백호팀']]: 5 };
+    state.bonuses.push({ id: newId('b'), classId: ids['현무팀'], reason: '응원', points: 11 });
+    state.bonuses.push({ id: newId('b'), classId: ids['주작팀'], reason: '잘생김', points: 10 });
+    state.bonuses.push({ id: newId('b'), classId: ids['현무팀'], reason: '지각', points: -20 });
     currentEventId = null;
     saveState();
     showMsg($('data-msg'), 'ok', ['예시 데이터를 넣었어요. ③ 순위표에서 확인해 보세요.']);
