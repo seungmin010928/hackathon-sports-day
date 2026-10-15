@@ -285,6 +285,120 @@
   .event-block ol { margin: 0; padding: 0; list-style: none; }
   .event-block li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
   .missing { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+  /* ---------- 순위표: 종합운동장 전광판 ---------- */
+  .board {
+    --digital: Consolas, "DejaVu Sans Mono", Menlo, "Courier New", monospace;
+    --led: #ffb000;
+    --led-glow: rgba(255, 176, 0, .55);
+    --board-bg: #0a0c0f;
+    position: relative;
+    overflow: hidden;
+    padding: 14px 12px 12px;
+    background: var(--board-bg);
+    border: 6px solid #262b33;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px #000, 0 8px 20px rgba(0, 0, 0, .35);
+    color: #e8edf2;
+  }
+  /* LED 점 무늬 */
+  .board::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, .07) 1px, transparent 1.5px);
+    background-size: 4px 4px;
+    pointer-events: none;
+  }
+  .board-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #262b33;
+  }
+  .board .board-title {
+    margin: 0;
+    color: #fff;
+    font-size: 19px;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(255, 255, 255, .45);
+  }
+  .board-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ff4040;
+    font: 700 13px var(--digital);
+    letter-spacing: 2px;
+    text-shadow: 0 0 6px #ff4040;
+  }
+  .board-live i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ff4040;
+    box-shadow: 0 0 8px #ff4040;
+    animation: blink 1.2s steps(2, jump-none) infinite;
+  }
+  @keyframes blink { 50% { opacity: .2; } }
+  .board-progress {
+    position: relative;
+    margin: 8px 0 4px;
+    padding: 5px 0;
+    overflow: hidden;
+    border-top: 1px solid #262b33;
+    border-bottom: 1px solid #262b33;
+    background: #07080a;
+    color: var(--led);
+    font: 700 14px var(--digital);
+    letter-spacing: 1px;
+    white-space: nowrap;
+    text-shadow: 0 0 6px var(--led-glow);
+  }
+  .ticker-track { display: inline-flex; animation: ticker 40s linear infinite; }
+  .ticker-run { display: inline-flex; }
+  .ticker-dot { padding: 0 18px; color: #ff4040; text-shadow: 0 0 6px #ff4040; font-size: 10px; line-height: 20px; }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
+  .board-hint { position: relative; margin: 10px 0 0; color: #7d8792; font-size: 12px; line-height: 1.5; }
+  .board #total-table th {
+    color: #8b95a1;
+    font-size: 12px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #2a2f37;
+  }
+  .board #total-table td { border-bottom: 1px solid #1b1f25; color: #f2f5f8; }
+  .board #total-table tbody tr { background: var(--board-bg); }
+  .board #total-table td.name { font-size: 17px; }
+  .board #total-table td.num {
+    font-family: var(--digital);
+    font-size: 17px;
+    color: var(--led);
+    text-shadow: 0 0 6px var(--led-glow);
+  }
+  .board #total-table td.pts-total {
+    font-size: 19px;
+    color: #ffe14d;
+    text-shadow: 0 0 8px rgba(255, 225, 77, .7);
+  }
+  .board #total-table td.pts-bonus.minus { color: #ff5a5a; text-shadow: 0 0 6px rgba(255, 90, 90, .6); }
+  .board #total-table .gap { font-family: var(--digital); color: #ff5a5a; text-shadow: 0 0 5px rgba(255, 90, 90, .6); }
+  .board #total-table .tie { color: #8b95a1; }
+  .board #total-table td.bump { color: #5ff1ff; text-shadow: 0 0 8px #5ff1ff; }
+  .board #total-table tbody tr.changed td { background: rgba(255, 176, 0, .14); }
+  .board #total-table tbody tr.rising td { background: #123a73; box-shadow: 0 6px 14px -6px rgba(64, 140, 255, .9); }
+  .board .medal {
+    background: transparent;
+    border-color: #3a414b;
+    color: #9aa4ae;
+    font-family: var(--digital);
+  }
+  .board .medal.m1 { border-color: #ffd84d; color: #ffd84d; text-shadow: 0 0 8px rgba(255, 216, 77, .8); box-shadow: 0 0 8px rgba(255, 216, 77, .35); }
+  .board .medal.m2 { border-color: #dfe7ef; color: #dfe7ef; text-shadow: 0 0 8px rgba(223, 231, 239, .7); box-shadow: 0 0 8px rgba(223, 231, 239, .25); }
+  .board .medal.m3 { border-color: #ff9d5c; color: #ff9d5c; text-shadow: 0 0 8px rgba(255, 157, 92, .8); box-shadow: 0 0 8px rgba(255, 157, 92, .3); }
+  .board .empty { color: #8b95a1; }
+  @media (prefers-reduced-motion: reduce) { .board-live i { animation: none; } }
 </style>
 </head>
 <body>
@@ -343,10 +457,14 @@
 
   <!-- 화면 ③: 순위표 -->
   <section class="tab" id="tab-rank">
-    <div class="card">
-      <h2>반별 총점 순위</h2>
-      <p class="hint">종목 점수: 1등 10점 · 2등 7점 · 3등 5점 · 4등부터 3점.<br>총점 = 종목 점수 + 특별 점수. 총점이 같으면 같은 순위입니다.</p>
+    <div class="card board" id="rank-board">
+      <div class="board-top">
+        <h2 class="board-title">실시간 종합 순위</h2>
+        <span class="board-live"><i></i>LIVE</span>
+      </div>
+      <div class="board-progress" id="board-progress"></div>
       <div id="total-table"></div>
+      <p class="board-hint">종목 점수: 1등 10점 · 2등 7점 · 3등 5점 · 4등부터 3점<br>총점 = 종목 점수 + 특별점수 · 총점이 같으면 같은 순위</p>
     </div>
     <div class="card">
       <h2>종목별 결과</h2>
@@ -1022,7 +1140,49 @@
     if (place && tied) cell.appendChild(el('span', { className: 'tie', text: '공동' }));
   }
 
+  // 띠 전광판: 같은 문구를 이어 붙인 줄 두 개를 왼쪽으로 흘려서 끊김 없이 반복
+  function setTicker(news) {
+    const box = $('board-progress');
+    const label = news.join(' · ');
+    if (box.getAttribute('aria-label') === label) return; // 같은 문구면 흐름을 다시 시작하지 않는다
+    box.setAttribute('aria-label', label);
+    box.textContent = '';
+    const track = el('div', { className: 'ticker-track', 'aria-hidden': 'true' });
+    for (let copy = 0; copy < 2; copy++) {
+      const run = el('span', { className: 'ticker-run' });
+      // 한 줄이 화면보다 길어야 끊김이 없어서 문구 묶음을 여러 번 이어 붙인다
+      const repeat = Math.max(2, Math.ceil(6 / news.length));
+      for (let k = 0; k < repeat; k++) {
+        news.forEach(t => {
+          run.appendChild(el('span', { text: t }));
+          run.appendChild(el('span', { className: 'ticker-dot', text: '●' }));
+        });
+      }
+      track.appendChild(run);
+    }
+    // 문구 길이에 맞춰 속도를 일정하게 (글자 하나 약 11px, 1초에 약 60px)
+    const chars = track.firstChild.textContent.length;
+    track.style.animationDuration = Math.max(8, chars * 11 / 60).toFixed(1) + 's';
+    box.appendChild(track);
+  }
+
   function renderRank() {
+    const done = state.events.filter(e => hasResult(e.id)).length;
+    // 띠 전광판 문구: 진행 상황, 현재 경기, 다음 경기 (결과가 없는 종목 순서대로)
+    const left = state.events.filter(e => !hasResult(e.id));
+    const news = [];
+    if (state.events.length === 0) {
+      news.push('등록된 종목 없음');
+    } else {
+      news.push('경기 진행 ' + done + ' / ' + state.events.length + ' 종목');
+      if (left.length === 0) {
+        news.push('모든 경기 종료 · 최종 순위를 확인하세요');
+      } else {
+        news.push('현재 진행 중: ' + eventLabel(left[0].id));
+        news.push(left.length > 1 ? '다음 경기: ' + eventLabel(left[1].id) + ' (곧 시작)' : '마지막 경기입니다');
+      }
+    }
+    setTicker(news);
     const box = $('total-table');
     box.textContent = '';
     if (state.classes.length === 0) {
