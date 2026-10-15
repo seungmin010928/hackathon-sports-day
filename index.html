@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>체육대회 점수판</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --text: #1d2329;
+    --muted: #5f6b76;
+    --line: #dde2e7;
+    --accent: #1f6feb;
+    --accent-soft: #e6effd;
+    --bad: #c62828;
+    --bad-soft: #fdecec;
+    --good: #2e7d32;
+    --gold: #b7860b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+  h1 { font-size: 20px; margin: 0; padding: 12px 0 8px; }
+  nav { display: flex; gap: 8px; padding-bottom: 10px; }
+  nav button {
+    flex: 1;
+    padding: 10px 4px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  nav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  main { padding: 16px 0 48px; }
+  section.tab { display: none; }
+  section.tab.on { display: block; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  h3 { font-size: 16px; margin: 0 0 8px; }
+  .hint { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+  .row { display: flex; gap: 8px; }
+  input, select {
+    font-size: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    min-width: 0;
+  }
+  .row input { flex: 1; }
+  input.bad { border-color: var(--bad); background: var(--bad-soft); }
+  button.btn {
+    font-size: 15px;
+    font-weight: 600;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button.btn.ghost { background: var(--card); color: var(--accent); }
+  button.btn.danger { background: var(--card); color: var(--bad); border-color: var(--bad); }
+  button.del {
+    border: none;
+    background: none;
+    color: var(--bad);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .msg { min-height: 0; margin: 8px 0 0; font-size: 14px; }
+  .msg.err { color: var(--bad); }
+  .msg.ok { color: var(--good); }
+  .msg ul { margin: 0; padding-left: 20px; }
+  ul.items { list-style: none; margin: 12px 0 0; padding: 0; }
+  ul.items li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0 6px 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  ul.items li:last-child { border-bottom: none; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  .rank-row {
+    display: grid;
+    grid-template-columns: 1fr 96px 56px;
+    gap: 8px;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-row input { width: 100%; text-align: center; }
+  .pts { color: var(--muted); font-size: 14px; text-align: right; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { font-size: 13px; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.first td { font-weight: 700; }
+  tr.first td.place { color: var(--gold); }
+  .tie { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .event-block { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .event-block:last-child { border-bottom: none; }
+  .event-block ol { margin: 0; padding: 0; list-style: none; }
+  .event-block li { display: flex; justify-content: space-between; padding: 2px 0; }
+  .missing { color: var(--muted); font-size: 14px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>체육대회 점수판</h1>
+    <nav>
+      <button type="button" data-tab="setup" class="on">① 반·종목 등록</button>
+      <button type="button" data-tab="input">② 결과 입력</button>
+      <button type="button" data-tab="rank">③ 순위표</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- 화면 ①: 반·종목 등록 -->
+  <section class="tab on" id="tab-setup">
+    <div class="card">
+      <h2>참가 반</h2>
+      <p class="hint">예: 1A, 1B, 2A</p>
+      <form class="row" id="class-form">
+        <input id="class-name" placeholder="반 이름" maxlength="20" autocomplete="off">
+        <button class="btn" type="submit">추가</button>
+      </form>
+      <div class="msg" id="class-msg"></div>
+      <ul class="items" id="class-list"></ul>
+    </div>
+
+    <div class="card">
+      <h2>종목</h2>
+      <p class="hint">예: 축구, 피구, 계주</p>
+      <form class="row" id="event-form">
+        <input id="event-name" placeholder="종목 이름" maxlength="20" autocomplete="off">
+        <button class="btn" type="submit">추가</button>
+      </form>
+      <div class="msg" id="event-msg"></div>
+      <ul class="items" id="event-list"></ul>
+    </div>
+
+    <div class="card">
+      <h2>데이터 관리</h2>
+      <p class="hint">처음 써 보는 경우 예시 데이터를 넣어 보세요. 예시는 모두 가짜 데이터입니다.</p>
+      <div class="actions">
+        <button class="btn ghost" type="button" id="sample-btn">예시 데이터 넣기</button>
+        <button class="btn danger" type="button" id="reset-btn">전체 초기화</button>
+      </div>
+      <div class="msg" id="data-msg"></div>
+    </div>
+  </section>
+
+  <!-- 화면 ②: 결과 입력 -->
+  <section class="tab" id="tab-input">
+    <div class="card" id="input-card"></div>
+  </section>
+
+  <!-- 화면 ③: 순위표 -->
+  <section class="tab" id="tab-rank">
+    <div class="card">
+      <h2>반별 총점 순위</h2>
+      <p class="hint">1등 10점 · 2등 7점 · 3등 5점 · 4등부터 3점. 총점이 같으면 같은 순위입니다.</p>
+      <div id="total-table"></div>
+    </div>
+    <div class="card">
+      <h2>종목별 결과</h2>
+      <div id="event-results"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const STORAGE_KEY = 'sportsScoreboard.v1';
+  const MAX_NAME = 20;
+
+  // 등수 → 점수
+  function pointsFor(rank) {
+    if (rank === 1) return 10;
+    if (rank === 2) return 7;
+    if (rank === 3) return 5;
+    return 3;
+  }
+
+  // ---------- 저장 / 불러오기 ----------
+  function emptyState() {
+    return { classes: [], events: [], results: {}, nextId: 1 };
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return emptyState();
+      const d = JSON.parse(raw);
+      if (!d || !Array.isArray(d.classes) || !Array.isArray(d.events) ||
+          typeof d.results !== 'object' || d.results === null) {
+        return emptyState();
+      }
+      if (!Number.isInteger(d.nextId)) d.nextId = 1;
+      return d;
+    } catch (e) {
+      return emptyState();
+    }
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return true;
+    } catch (e) {
+      alert('브라우저에 저장하지 못했어요. 시크릿 창이거나 저장 공간이 꽉 찼을 수 있어요.');
+      return false;
+    }
+  }
+
+  let state = loadState();
+  let currentEventId = null;
+
+  function newId(prefix) {
+    return prefix + (state.nextId++);
+  }
+
+  // ---------- 작은 도우미 ----------
+  function $(id) { return document.getElementById(id); }
+
+  function el(tag, props, children) {
+    const node = document.createElement(tag);
+    if (props) {
+      for (const k in props) {
+        if (k === 'text') node.textContent = props[k];
+        else if (k === 'className') node.className = props[k];
+        else node.setAttribute(k, props[k]);
+      }
+    }
+    (children || []).forEach(c => { if (c) node.appendChild(c); });
+    return node;
+  }
+
+  function showMsg(box, kind, lines) {
+    box.className = 'msg ' + kind;
+    box.textContent = '';
+    if (!lines || lines.length === 0) return;
+    if (lines.length === 1) { box.textContent = lines[0]; return; }
+    const ul = el('ul');
+    lines.forEach(t => ul.appendChild(el('li', { text: t })));
+    box.appendChild(ul);
+  }
+
+  function className(id) {
+    const c = state.classes.find(x => x.id === id);
+    return c ? c.name : '';
+  }
+
+  // ---------- 화면 이동 ----------
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.addEventListener('click', () => showTab(btn.dataset.tab));
+  });
+
+  function currentTab() {
+    return document.querySelector('nav button.on').dataset.tab;
+  }
+
+  // 결과 입력 화면에 저장하지 않은 등수가 있는지
+  function hasUnsavedInput() {
+    if (!currentEventId) return false;
+    const saved = state.results[currentEventId] || {};
+    return Array.from(document.querySelectorAll('#input-card .rank-row input')).some(input => {
+      const before = saved[input.dataset.classId] !== undefined ? String(saved[input.dataset.classId]) : '';
+      return input.value.trim() !== before;
+    });
+  }
+
+  function okToLeaveInput() {
+    if (!hasUnsavedInput()) return true;
+    return confirm('저장하지 않은 등수가 있어요.\n저장 버튼을 누르지 않고 넘어가면 입력한 내용이 사라져요.\n그래도 넘어갈까요?');
+  }
+
+  window.addEventListener('beforeunload', e => {
+    if (currentTab() === 'input' && hasUnsavedInput()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  function showTab(name) {
+    if (name === currentTab()) return;
+    if (currentTab() === 'input' && !okToLeaveInput()) return;
+    document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+    document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + name));
+    renderAll();
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- 화면 ①: 반·종목 등록 ----------
+  function checkName(list, raw, label) {
+    const name = raw.trim().replace(/\s+/g, ' ');
+    if (name === '') return { error: label + ' 이름을 적어 주세요.' };
+    if (name.length > MAX_NAME) return { error: label + ' 이름은 ' + MAX_NAME + '글자까지 쓸 수 있어요.' };
+    const same = list.some(x => x.name.toLowerCase() === name.toLowerCase());
+    if (same) return { error: '"' + name + '"은(는) 이미 등록된 ' + label + '이에요.' };
+    return { name: name };
+  }
+
+  $('class-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = $('class-name');
+    const r = checkName(state.classes, input.value, '반');
+    if (r.error) { input.classList.add('bad'); showMsg($('class-msg'), 'err', [r.error]); return; }
+    state.classes.push({ id: newId('c'), name: r.name });
+    saveState();
+    input.value = '';
+    input.classList.remove('bad');
+    showMsg($('class-msg'), 'ok', [r.name + ' 반을 추가했어요.']);
+    renderAll();
+    input.focus();
+  });
+
+  $('event-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = $('event-name');
+    const r = checkName(state.events, input.value, '종목');
+    if (r.error) { input.classList.add('bad'); showMsg($('event-msg'), 'err', [r.error]); return; }
+    state.events.push({ id: newId('e'), name: r.name });
+    saveState();
+    input.value = '';
+    input.classList.remove('bad');
+    showMsg($('event-msg'), 'ok', [r.name + ' 종목을 추가했어요.']);
+    renderAll();
+    input.focus();
+  });
+
+  ['class-name', 'event-name'].forEach(id => {
+    $(id).addEventListener('input', () => $(id).classList.remove('bad'));
+  });
+
+  function deleteClass(id) {
+    const name = className(id);
+    const affected = state.events.filter(ev => state.results[ev.id] && state.results[ev.id][id] !== undefined);
+    let ask = name + ' 반을 삭제할까요?';
+    if (affected.length > 0) {
+      ask += '\n이 반의 결과 ' + affected.length + '개(' + affected.map(e => e.name).join(', ') + ')도 함께 지워져요.';
+    }
+    if (!confirm(ask)) return;
+
+    state.classes = state.classes.filter(c => c.id !== id);
+    const n = state.classes.length;
+    let cleared = 0;
+    for (const evId in state.results) {
+      const res = state.results[evId];
+      delete res[id];
+      // 반 수가 줄어서 범위를 넘게 된 등수는 지운다
+      for (const cId in res) {
+        if (res[cId] > n) { delete res[cId]; cleared++; }
+      }
+      if (Object.keys(res).length === 0) delete state.results[evId];
+    }
+    saveState();
+    const lines = [name + ' 반을 삭제했어요.'];
+    if (cleared > 0) lines.push('반 수가 ' + n + '개로 줄어서, ' + n + '등보다 큰 등수 ' + cleared + '개도 지웠어요. 결과 입력 화면에서 다시 확인해 주세요.');
+    showMsg($('class-msg'), cleared > 0 ? 'err' : 'ok', lines);
+    renderAll();
+  }
+
+  function deleteEvent(id) {
+    const ev = state.events.find(e => e.id === id);
+    const res = state.results[id];
+    let ask = ev.name + ' 종목을 삭제할까요?';
+    if (res && Object.keys(res).length > 0) ask += '\n입력해 둔 이 종목의 결과도 함께 지워져요.';
+    if (!confirm(ask)) return;
+    state.events = state.events.filter(e => e.id !== id);
+    delete state.results[id];
+    if (currentEventId === id) currentEventId = null;
+    saveState();
+    showMsg($('event-msg'), 'ok', [ev.name + ' 종목을 삭제했어요.']);
+    renderAll();
+  }
+
+  function renderSetup() {
+    const cl = $('class-list');
+    cl.textContent = '';
+    if (state.classes.length === 0) cl.appendChild(el('li', { className: 'empty', text: '아직 등록된 반이 없어요.' }));
+    state.classes.forEach(c => {
+      const del = el('button', { className: 'del', type: 'button', text: '삭제' });
+      del.addEventListener('click', () => deleteClass(c.id));
+      cl.appendChild(el('li', null, [el('span', { text: c.name }), del]));
+    });
+
+    const evl = $('event-list');
+    evl.textContent = '';
+    if (state.events.length === 0) evl.appendChild(el('li', { className: 'empty', text: '아직 등록된 종목이 없어요.' }));
+    state.events.forEach(ev => {
+      const del = el('button', { className: 'del', type: 'button', text: '삭제' });
+      del.addEventListener('click', () => deleteEvent(ev.id));
+      evl.appendChild(el('li', null, [el('span', { text: ev.name }), del]));
+    });
+  }
+
+  $('sample-btn').addEventListener('click', () => {
+    const hasData = state.classes.length > 0 || state.events.length > 0;
+    if (hasData && !confirm('지금 있는 데이터를 모두 지우고 예시 데이터를 넣을까요?')) return;
+    state = emptyState();
+    const ids = {};
+    ['1A', '1B', '2A', '2B', '3A'].forEach(n => { ids[n] = newId('c'); state.classes.push({ id: ids[n], name: n }); });
+    const evs = {};
+    ['축구', '피구', '계주', '줄다리기'].forEach(n => { evs[n] = newId('e'); state.events.push({ id: evs[n], name: n }); });
+    state.results[evs['축구']] = { [ids['1A']]: 1, [ids['1B']]: 2, [ids['2A']]: 3, [ids['2B']]: 4, [ids['3A']]: 5 };
+    state.results[evs['피구']] = { [ids['2A']]: 1, [ids['1A']]: 2, [ids['3A']]: 3 };
+    state.results[evs['계주']] = { [ids['1B']]: 1, [ids['2A']]: 2, [ids['1A']]: 3, [ids['2B']]: 4 };
+    currentEventId = null;
+    saveState();
+    showMsg($('data-msg'), 'ok', ['예시 데이터를 넣었어요. ③ 순위표에서 확인해 보세요.']);
+    renderAll();
+  });
+
+  $('reset-btn').addEventListener('click', () => {
+    if (!confirm('반, 종목, 결과를 모두 지울까요? 되돌릴 수 없어요.')) return;
+    state = emptyState();
+    currentEventId = null;
+    saveState();
+    showMsg($('data-msg'), 'ok', ['모든 데이터를 지웠어요.']);
+    renderAll();
+  });
+
+  // ---------- 화면 ②: 결과 입력 ----------
+  function renderInput() {
+    const card = $('input-card');
+    card.textContent = '';
+    card.appendChild(el('h2', { text: '종목 결과 입력' }));
+
+    if (state.classes.length === 0 || state.events.length === 0) {
+      card.appendChild(el('p', { className: 'empty', text: '먼저 ① 반·종목 등록 화면에서 반과 종목을 하나 이상 등록해 주세요.' }));
+      return;
+    }
+    if (!state.events.some(e => e.id === currentEventId)) currentEventId = state.events[0].id;
+
+    const n = state.classes.length;
+    card.appendChild(el('p', {
+      className: 'hint',
+      text: '등수는 1부터 ' + n + '까지 적어요. 참가하지 않은 반은 비워 두면 돼요. 한 종목 안에서 같은 등수는 한 반만 가질 수 있어요.'
+    }));
+
+    const select = el('select', { 'aria-label': '종목 선택' });
+    select.style.width = '100%';
+    state.events.forEach(ev => {
+      const opt = el('option', { value: ev.id, text: ev.name });
+      if (ev.id === currentEventId) opt.selected = true;
+      select.appendChild(opt);
+    });
+    select.addEventListener('change', () => {
+      if (!okToLeaveInput()) { select.value = currentEventId; return; }
+      currentEventId = select.value;
+      renderInput();
+    });
+    card.appendChild(select);
+
+    const saved = state.results[currentEventId] || {};
+    const msg = el('div', { className: 'msg' });
+    const list = el('div');
+    list.style.marginTop = '12px';
+    const inputs = [];
+    state.classes.forEach(c => {
+      const input = el('input', {
+        inputmode: 'numeric',
+        autocomplete: 'off',
+        placeholder: '1~' + n,
+        maxlength: String(n).length,
+        'data-class-id': c.id,
+        'aria-label': c.name + ' 등수'
+      });
+      input.value = saved[c.id] !== undefined ? String(saved[c.id]) : '';
+      let lastOk = input.value;
+      const pts = el('span', { className: 'pts' });
+      const updatePts = () => {
+        input.classList.remove('bad');
+        // 숫자만 남기고, 1~반 수를 벗어나면 입력 전 값으로 되돌린다
+        const digits = input.value.replace(/\D/g, '');
+        if (digits !== '' && (Number(digits) < 1 || Number(digits) > n)) {
+          input.value = lastOk;
+          showMsg(msg, 'err', ['등수는 1부터 ' + n + '까지만 넣을 수 있어요. (등록된 반 ' + n + '개)']);
+        } else {
+          input.value = digits;
+          lastOk = digits;
+        }
+        const v = input.value.trim();
+        if (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= n) pts.textContent = pointsFor(Number(v)) + '점';
+        else pts.textContent = '';
+      };
+      input.addEventListener('input', updatePts);
+      updatePts();
+      inputs.push({ classId: c.id, name: c.name, input: input });
+      list.appendChild(el('div', { className: 'rank-row' }, [el('span', { text: c.name }), input, pts]));
+    });
+    card.appendChild(list);
+
+    const saveBtn = el('button', { className: 'btn', type: 'button', text: '저장' });
+    const clearBtn = el('button', { className: 'btn danger', type: 'button', text: '이 종목 결과 지우기' });
+    card.appendChild(el('div', { className: 'actions' }, [saveBtn, clearBtn]));
+    card.appendChild(msg);
+
+    saveBtn.addEventListener('click', () => {
+      const errors = [];
+      const entries = {};
+      const usedBy = {};
+      inputs.forEach(row => {
+        const v = row.input.value.trim();
+        if (v === '') return;
+        if (!/^\d+$/.test(v)) {
+          row.input.classList.add('bad');
+          errors.push(row.name + ': "' + v + '"은(는) 쓸 수 없어요. 1, 2, 3 같은 자연수로 적어 주세요.');
+          return;
+        }
+        const r = Number(v);
+        if (r < 1 || r > n) {
+          row.input.classList.add('bad');
+          errors.push(row.name + ': 등수는 1부터 ' + n + '까지만 넣을 수 있어요.');
+          return;
+        }
+        if (usedBy[r]) {
+          row.input.classList.add('bad');
+          usedBy[r].input.classList.add('bad');
+          errors.push(r + '등이 ' + usedBy[r].name + '와(과) ' + row.name + '에 겹쳐요. 같은 등수는 한 반만 가질 수 있어요.');
+          return;
+        }
+        usedBy[r] = row;
+        entries[row.classId] = r;
+      });
+
+      if (errors.length > 0) { showMsg(msg, 'err', errors); return; }
+
+      const evName = state.events.find(e => e.id === currentEventId).name;
+      if (Object.keys(entries).length === 0) {
+        showMsg(msg, 'err', ['등수를 하나 이상 넣어 주세요. 결과를 지우려면 "이 종목 결과 지우기"를 누르세요.']);
+        return;
+      }
+      state.results[currentEventId] = entries;
+      if (saveState()) {
+        showMsg(msg, 'ok', [evName + ' 결과를 저장했어요. (' + Object.keys(entries).length + '개 반)']);
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      const evName = state.events.find(e => e.id === currentEventId).name;
+      if (!state.results[currentEventId]) {
+        inputs.forEach(row => { row.input.value = ''; row.input.dispatchEvent(new Event('input')); });
+        showMsg(msg, 'ok', ['지울 결과가 없어요.']);
+        return;
+      }
+      if (!confirm(evName + ' 결과를 모두 지울까요?')) return;
+      delete state.results[currentEventId];
+      saveState();
+      renderInput();
+      showMsg($('input-card').querySelector('.msg'), 'ok', [evName + ' 결과를 지웠어요.']);
+    });
+  }
+
+  // ---------- 화면 ③: 순위표 ----------
+  function computeTotals() {
+    const totals = state.classes.map(c => ({ id: c.id, name: c.name, total: 0, played: 0 }));
+    const byId = {};
+    totals.forEach(t => { byId[t.id] = t; });
+    state.events.forEach(ev => {
+      const res = state.results[ev.id] || {};
+      for (const cId in res) {
+        if (byId[cId]) { byId[cId].total += pointsFor(res[cId]); byId[cId].played++; }
+      }
+    });
+    totals.sort((a, b) => b.total - a.total);
+    // 같은 점수는 같은 순위, 다음 순위는 건너뜀 (1, 1, 3)
+    totals.forEach(t => { t.place = 1 + totals.filter(o => o.total > t.total).length; });
+    totals.forEach(t => { t.tied = totals.filter(o => o.total === t.total).length > 1; });
+    return totals;
+  }
+
+  function renderRank() {
+    const box = $('total-table');
+    box.textContent = '';
+    if (state.classes.length === 0) {
+      box.appendChild(el('p', { className: 'empty', text: '등록된 반이 없어요.' }));
+    } else {
+      const totals = computeTotals();
+      const tbody = el('tbody');
+      totals.forEach(t => {
+        const placeCell = el('td', { className: 'place', text: t.place + '위' });
+        if (t.tied) placeCell.appendChild(el('span', { className: 'tie', text: '공동' }));
+        tbody.appendChild(el('tr', { className: t.place === 1 && t.total > 0 ? 'first' : '' }, [
+          placeCell,
+          el('td', { text: t.name }),
+          el('td', { className: 'num', text: t.played + '개' }),
+          el('td', { className: 'num', text: t.total + '점' })
+        ]));
+      });
+      box.appendChild(el('table', null, [
+        el('thead', null, [el('tr', null, [
+          el('th', { text: '순위' }), el('th', { text: '반' }),
+          el('th', { className: 'num', text: '참가 종목' }), el('th', { className: 'num', text: '총점' })
+        ])]),
+        tbody
+      ]));
+    }
+
+    const evBox = $('event-results');
+    evBox.textContent = '';
+    if (state.events.length === 0) {
+      evBox.appendChild(el('p', { className: 'empty', text: '등록된 종목이 없어요.' }));
+      return;
+    }
+    state.events.forEach(ev => {
+      const block = el('div', { className: 'event-block' }, [el('h3', { text: ev.name })]);
+      const res = state.results[ev.id] || {};
+      const entered = Object.keys(res).filter(cId => className(cId) !== '')
+        .sort((a, b) => res[a] - res[b]);
+      if (entered.length === 0) {
+        block.appendChild(el('p', { className: 'empty', text: '아직 결과가 없어요.' }));
+      } else {
+        const ol = el('ol');
+        entered.forEach(cId => {
+          ol.appendChild(el('li', null, [
+            el('span', { text: res[cId] + '등 ' + className(cId) }),
+            el('span', { className: 'pts', text: pointsFor(res[cId]) + '점' })
+          ]));
+        });
+        block.appendChild(ol);
+        const missing = state.classes.filter(c => res[c.id] === undefined).map(c => c.name);
+        if (missing.length > 0) block.appendChild(el('p', { className: 'missing', text: '결과 없음: ' + missing.join(', ') }));
+      }
+      evBox.appendChild(block);
+    });
+  }
+
+  function renderAll() {
+    renderSetup();
+    renderInput();
+    renderRank();
+  }
+
+  renderAll();
+</script>
+</body>
+</html>
