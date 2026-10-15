@@ -40,17 +40,19 @@
   h1 { font-size: 20px; margin: 0; padding: 12px 0 8px; }
   nav { display: flex; gap: 8px; padding-bottom: 10px; }
   nav button {
-    flex: 1;
-    padding: 10px 4px;
+    flex: 1 1 auto; /* 글자 길이에 맞춰 너비를 나눈다 */
+    padding: 10px 6px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--card);
     color: var(--text);
-    font-size: 15px;
+    font-size: 14px;
+    white-space: nowrap;
     font-weight: 600;
     cursor: pointer;
   }
   nav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (max-width: 359px) { nav button { white-space: normal; } } /* 아주 좁은 화면에서는 줄바꿈 허용 */
   main { padding: 16px 0 48px; }
   section.tab { display: none; }
   section.tab.on { display: block; }
@@ -268,16 +270,53 @@
   button.seg.minus.on { background: var(--bad); border-color: var(--bad); color: #fff; }
   button.btn.minus { background: var(--bad); border-color: var(--bad); }
   .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  .rank-head {
+    display: grid;
+    grid-template-columns: 1fr 112px 56px;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .rank-head span:nth-child(2) { text-align: center; }
+  .rank-head span:nth-child(3) { text-align: right; }
   .rank-row {
     display: grid;
-    grid-template-columns: 1fr 96px 56px;
+    grid-template-columns: 1fr 112px 56px;
     gap: 8px;
     align-items: center;
     padding: 6px 0;
     border-bottom: 1px solid var(--line);
   }
   .rank-row:last-child { border-bottom: none; }
-  .rank-row input { width: 100%; text-align: center; }
+  .rank-field {
+    display: flex;
+    align-items: center;
+    padding-right: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    cursor: text;
+  }
+  .rank-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .rank-field:has(input.bad) { border-color: var(--bad); background: var(--bad-soft); }
+  .rank-field input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 0 10px 12px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 17px;
+    font-weight: 700;
+    text-align: center;
+  }
+  .rank-field input.bad { background: transparent; }
+  .rank-field input::placeholder { font-size: 14px; font-weight: 400; }
+  .rank-unit { color: var(--muted); font-weight: 700; }
   .pts { color: var(--muted); font-size: 14px; text-align: right; }
   .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
   table { width: 100%; border-collapse: collapse; }
@@ -532,15 +571,15 @@
   <div class="wrap">
     <h1>체육대회 점수판</h1>
     <nav>
-      <button type="button" data-tab="setup" class="on">① 반·종목 등록</button>
-      <button type="button" data-tab="input">② 결과 입력</button>
+      <button type="button" data-tab="setup" class="on">① 출전팀·종목 등록</button>
+      <button type="button" data-tab="input">② 경기결과 입력</button>
       <button type="button" data-tab="rank">③ 순위표</button>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
-  <!-- 화면 ①: 반·종목 등록 -->
+  <!-- 화면 ①: 출전팀·종목 등록 -->
   <section class="tab on" id="tab-setup">
     <div class="card">
       <h2>참가 반</h2>
@@ -575,7 +614,7 @@
     </div>
   </section>
 
-  <!-- 화면 ②: 결과 입력 -->
+  <!-- 화면 ②: 경기결과 입력 -->
   <section class="tab" id="tab-input">
     <div class="card" id="input-card"></div>
     <div class="card" id="bonus-card"></div>
@@ -734,7 +773,7 @@
     else animToken++;
   }
 
-  // ---------- 화면 ①: 반·종목 등록 ----------
+  // ---------- 화면 ①: 출전팀·종목 등록 ----------
   function checkName(list, raw, label) {
     const name = raw.trim().replace(/\s+/g, ' ');
     if (name === '') return { error: label + ' 이름을 적어 주세요.' };
@@ -803,7 +842,7 @@
     }
     saveState();
     const lines = [name + ' 반을 삭제했어요.'];
-    if (cleared > 0) lines.push('반 수가 ' + n + '개로 줄어서, ' + n + '등보다 큰 등수 ' + cleared + '개도 지웠어요. 결과 입력 화면에서 다시 확인해 주세요.');
+    if (cleared > 0) lines.push('반 수가 ' + n + '개로 줄어서, ' + n + '등보다 큰 등수 ' + cleared + '개도 지웠어요. ② 경기결과 입력 화면에서 다시 확인해 주세요.');
     showMsg($('class-msg'), cleared > 0 ? 'err' : 'ok', lines);
     renderAll();
   }
@@ -944,7 +983,7 @@
     renderAll();
   });
 
-  // ---------- 화면 ②: 결과 입력 ----------
+  // ---------- 화면 ②: 경기결과 입력 ----------
   // ---------- 다음에 입력할 종목 자동 선택 ----------
   let inputNotice = null; // 결과 입력 화면 위쪽 안내
   let justSavedId = null; // 방금 저장한 종목 (✓ 안내는 이 종목일 때만)
@@ -983,10 +1022,10 @@
   function renderInput() {
     const card = $('input-card');
     card.textContent = '';
-    card.appendChild(el('h2', { text: '종목 결과 입력' }));
+    card.appendChild(el('h2', { text: '경기결과 입력' }));
 
     if (state.classes.length === 0 || state.events.length === 0) {
-      card.appendChild(el('p', { className: 'empty', text: '먼저 ① 반·종목 등록 화면에서 반과 종목을 하나 이상 등록해 주세요.' }));
+      card.appendChild(el('p', { className: 'empty', text: '먼저 ① 출전팀·종목 등록 화면에서 반과 종목을 하나 이상 등록해 주세요.' }));
       return;
     }
     if (!state.events.some(e => e.id === currentEventId)) currentEventId = state.events[0].id;
@@ -1040,6 +1079,9 @@
     const msg = el('div', { className: 'msg' });
     const list = el('div');
     list.style.marginTop = '12px';
+    list.appendChild(el('div', { className: 'rank-head', 'aria-hidden': 'true' }, [
+      el('span', { text: '출전팀' }), el('span', { text: '등수' }), el('span', { text: '점수' })
+    ]));
     const inputs = [];
     state.classes.forEach(c => {
       const input = el('input', {
@@ -1071,7 +1113,9 @@
       input.addEventListener('input', updatePts);
       updatePts();
       inputs.push({ classId: c.id, name: c.name, input: input });
-      list.appendChild(el('div', { className: 'rank-row' }, [el('span', { text: c.name }), input, pts]));
+      // 숫자 옆에 '등'을 붙여 등수 칸인 걸 알 수 있게 (label이라 '등'을 눌러도 입력된다)
+      const field = el('label', { className: 'rank-field' }, [input, el('span', { className: 'rank-unit', text: '등' })]);
+      list.appendChild(el('div', { className: 'rank-row' }, [el('span', { text: c.name }), field, pts]));
     });
     card.appendChild(list);
 
@@ -1159,7 +1203,7 @@
     card.textContent = '';
     if (state.classes.length === 0) {
       card.appendChild(el('h2', { text: '특별 점수' }));
-      card.appendChild(el('p', { className: 'empty', text: '먼저 ① 반·종목 등록 화면에서 반을 등록해 주세요.' }));
+      card.appendChild(el('p', { className: 'empty', text: '먼저 ① 출전팀·종목 등록 화면에서 반을 등록해 주세요.' }));
       return;
     }
 
