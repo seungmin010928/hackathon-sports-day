@@ -125,6 +125,46 @@
   th, td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
   th { font-size: 13px; color: var(--muted); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  #total-table table { table-layout: fixed; }
+  #total-table th:nth-child(1) { width: 23%; }
+  #total-table th:nth-child(2) { width: 30%; }
+  #total-table th:nth-child(3) { width: 14%; }
+  #total-table th:nth-child(4) { width: 13%; }
+  #total-table th:nth-child(5) { width: 20%; }
+  #total-table th, #total-table td { padding: 8px 4px; overflow-wrap: anywhere; }
+  #total-table tbody tr { background: var(--card); }
+  #total-table tbody tr.moving { position: relative; z-index: 2; }
+  #total-table tbody td { transition: background-color .4s; }
+  #total-table tbody tr.changed td { background: #fff3c4; }
+  #total-table tbody tr.rising td { background: #cfe0ff; box-shadow: 0 6px 12px -6px rgba(31, 111, 235, .6); }
+  #total-table td.bump { color: var(--accent); font-weight: 800; }
+  .delta {
+    display: inline-block;
+    margin-left: 3px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--good);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 20px;
+    vertical-align: middle;
+    animation: badge-in .5s ease-out;
+  }
+  .move {
+    display: inline-block;
+    margin-left: 3px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 20px;
+    vertical-align: middle;
+    animation: badge-in .5s ease-out;
+  }
+  .move.up { color: #fff; background: var(--good); }
+  .move.down { color: #fff; background: var(--bad); }
+  @keyframes badge-in { 0% { transform: scale(0); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
   tr.first td { font-weight: 700; }
   tr.first td.place { color: var(--gold); }
   .tie { font-size: 12px; color: var(--muted); margin-left: 4px; }
@@ -186,13 +226,14 @@
   <!-- 화면 ②: 결과 입력 -->
   <section class="tab" id="tab-input">
     <div class="card" id="input-card"></div>
+    <div class="card" id="bonus-card"></div>
   </section>
 
   <!-- 화면 ③: 순위표 -->
   <section class="tab" id="tab-rank">
     <div class="card">
       <h2>반별 총점 순위</h2>
-      <p class="hint">1등 10점 · 2등 7점 · 3등 5점 · 4등부터 3점. 총점이 같으면 같은 순위입니다.</p>
+      <p class="hint">종목 점수: 1등 10점 · 2등 7점 · 3등 5점 · 4등부터 3점.<br>총점 = 종목 점수 + 특별 점수. 총점이 같으면 같은 순위입니다.</p>
       <div id="total-table"></div>
     </div>
     <div class="card">
@@ -205,6 +246,7 @@
 <script>
   const STORAGE_KEY = 'sportsScoreboard.v1';
   const MAX_NAME = 20;
+  const MAX_BONUS = 100;
 
   // 등수 → 점수
   function pointsFor(rank) {
@@ -216,7 +258,7 @@
 
   // ---------- 저장 / 불러오기 ----------
   function emptyState() {
-    return { classes: [], events: [], results: {}, nextId: 1 };
+    return { classes: [], events: [], results: {}, bonuses: [], nextId: 1 };
   }
 
   function loadState() {
@@ -229,6 +271,7 @@
         return emptyState();
       }
       if (!Number.isInteger(d.nextId)) d.nextId = 1;
+      if (!Array.isArray(d.bonuses)) d.bonuses = [];
       return d;
     } catch (e) {
       return emptyState();
@@ -318,6 +361,8 @@
     document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + name));
     renderAll();
     window.scrollTo(0, 0);
+    if (name === 'rank') animateRank();
+    else animToken++;
   }
 
   // ---------- 화면 ①: 반·종목 등록 ----------
@@ -369,9 +414,12 @@
     if (affected.length > 0) {
       ask += '\n이 반의 결과 ' + affected.length + '개(' + affected.map(e => e.name).join(', ') + ')도 함께 지워져요.';
     }
+    const bonusCount = state.bonuses.filter(b => b.classId === id).length;
+    if (bonusCount > 0) ask += '\n이 반의 특별 점수 ' + bonusCount + '개도 함께 지워져요.';
     if (!confirm(ask)) return;
 
     state.classes = state.classes.filter(c => c.id !== id);
+    state.bonuses = state.bonuses.filter(b => b.classId !== id);
     const n = state.classes.length;
     let cleared = 0;
     for (const evId in state.results) {
@@ -435,6 +483,8 @@
     state.results[evs['축구']] = { [ids['1A']]: 1, [ids['1B']]: 2, [ids['2A']]: 3, [ids['2B']]: 4, [ids['3A']]: 5 };
     state.results[evs['피구']] = { [ids['2A']]: 1, [ids['1A']]: 2, [ids['3A']]: 3 };
     state.results[evs['계주']] = { [ids['1B']]: 1, [ids['2A']]: 2, [ids['1A']]: 3, [ids['2B']]: 4 };
+    state.bonuses.push({ id: newId('b'), classId: ids['3A'], reason: '응원', points: 5 });
+    state.bonuses.push({ id: newId('b'), classId: ids['2B'], reason: '질서 지키기', points: 3 });
     currentEventId = null;
     saveState();
     showMsg($('data-msg'), 'ok', ['예시 데이터를 넣었어요. ③ 순위표에서 확인해 보세요.']);
@@ -582,17 +632,103 @@
     });
   }
 
+  // ---------- 화면 ②: 특별 점수 ----------
+  function renderBonus() {
+    const card = $('bonus-card');
+    card.textContent = '';
+    card.appendChild(el('h2', { text: '특별 점수' }));
+    if (state.classes.length === 0) {
+      card.appendChild(el('p', { className: 'empty', text: '먼저 ① 반·종목 등록 화면에서 반을 등록해 주세요.' }));
+      return;
+    }
+    card.appendChild(el('p', {
+      className: 'hint',
+      text: '응원, 질서 지키기처럼 종목 말고 따로 주는 점수예요. 1점부터 ' + MAX_BONUS + '점까지 줄 수 있고, 반 총점에 더해져요.'
+    }));
+
+    const select = el('select', { 'aria-label': '특별 점수 받을 반' });
+    select.style.width = '100%';
+    state.classes.forEach(c => select.appendChild(el('option', { value: c.id, text: c.name })));
+    const reason = el('input', { placeholder: '이유 (예: 응원)', maxlength: MAX_NAME, autocomplete: 'off', 'aria-label': '특별 점수 이유' });
+    const points = el('input', { placeholder: '점수', inputmode: 'numeric', autocomplete: 'off', maxlength: String(MAX_BONUS).length, 'aria-label': '특별 점수' });
+    points.style.width = '88px';
+    points.style.flex = 'none';
+    const addBtn = el('button', { className: 'btn', type: 'submit', text: '추가' });
+    const msg = el('div', { className: 'msg' });
+
+    // 숫자만, 최대 점수를 넘으면 입력 전 값으로 되돌린다
+    let lastOk = '';
+    points.addEventListener('input', () => {
+      points.classList.remove('bad');
+      const digits = points.value.replace(/\D/g, '');
+      if (digits !== '' && (Number(digits) < 1 || Number(digits) > MAX_BONUS)) {
+        points.value = lastOk;
+        showMsg(msg, 'err', ['특별 점수는 1점부터 ' + MAX_BONUS + '점까지만 줄 수 있어요.']);
+      } else {
+        points.value = digits;
+        lastOk = digits;
+      }
+    });
+    reason.addEventListener('input', () => reason.classList.remove('bad'));
+
+    const form = el('form', null, [
+      select,
+      el('div', { className: 'row' }, [reason, points, addBtn])
+    ]);
+    form.lastChild.style.marginTop = '8px';
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const errors = [];
+      const why = reason.value.trim().replace(/\s+/g, ' ');
+      if (why === '') { reason.classList.add('bad'); errors.push('이유를 적어 주세요. (예: 응원)'); }
+      const p = points.value.trim();
+      if (!/^\d+$/.test(p) || Number(p) < 1 || Number(p) > MAX_BONUS) {
+        points.classList.add('bad');
+        errors.push('점수는 1부터 ' + MAX_BONUS + '까지의 자연수로 적어 주세요.');
+      }
+      if (errors.length > 0) { showMsg(msg, 'err', errors); return; }
+      state.bonuses.push({ id: newId('b'), classId: select.value, reason: why, points: Number(p) });
+      saveState();
+      renderBonus(); renderRank();
+      showMsg($('bonus-card').querySelector('.msg'), 'ok', [className(select.value) + '에 ' + why + ' ' + p + '점을 줬어요.']);
+    });
+    card.appendChild(form);
+    card.appendChild(msg);
+
+    const list = el('ul', { className: 'items' });
+    const shown = state.bonuses.filter(b => className(b.classId) !== '');
+    if (shown.length === 0) list.appendChild(el('li', { className: 'empty', text: '아직 준 특별 점수가 없어요.' }));
+    shown.forEach(b => {
+      const del = el('button', { className: 'del', type: 'button', text: '삭제' });
+      del.addEventListener('click', () => {
+        if (!confirm(className(b.classId) + ' ' + b.reason + ' ' + b.points + '점을 지울까요?')) return;
+        state.bonuses = state.bonuses.filter(x => x.id !== b.id);
+        saveState();
+        renderBonus(); renderRank();
+      });
+      list.appendChild(el('li', null, [
+        el('span', { text: className(b.classId) + ' · ' + b.reason + ' · ' + b.points + '점' }),
+        del
+      ]));
+    });
+    card.appendChild(list);
+  }
+
   // ---------- 화면 ③: 순위표 ----------
   function computeTotals() {
-    const totals = state.classes.map(c => ({ id: c.id, name: c.name, total: 0, played: 0 }));
+    const totals = state.classes.map(c => ({ id: c.id, name: c.name, eventPts: 0, bonusPts: 0, total: 0 }));
     const byId = {};
     totals.forEach(t => { byId[t.id] = t; });
     state.events.forEach(ev => {
       const res = state.results[ev.id] || {};
       for (const cId in res) {
-        if (byId[cId]) { byId[cId].total += pointsFor(res[cId]); byId[cId].played++; }
+        if (byId[cId]) byId[cId].eventPts += pointsFor(res[cId]);
       }
     });
+    state.bonuses.forEach(b => {
+      if (byId[b.classId]) byId[b.classId].bonusPts += b.points;
+    });
+    totals.forEach(t => { t.total = t.eventPts + t.bonusPts; });
     totals.sort((a, b) => b.total - a.total);
     // 같은 점수는 같은 순위, 다음 순위는 건너뜀 (1, 1, 3)
     totals.forEach(t => { t.place = 1 + totals.filter(o => o.total > t.total).length; });
@@ -611,17 +747,19 @@
       totals.forEach(t => {
         const placeCell = el('td', { className: 'place', text: t.place + '위' });
         if (t.tied) placeCell.appendChild(el('span', { className: 'tie', text: '공동' }));
-        tbody.appendChild(el('tr', { className: t.place === 1 && t.total > 0 ? 'first' : '' }, [
+        tbody.appendChild(el('tr', { className: t.place === 1 && t.total > 0 ? 'first' : '', 'data-id': t.id }, [
           placeCell,
-          el('td', { text: t.name }),
-          el('td', { className: 'num', text: t.played + '개' }),
-          el('td', { className: 'num', text: t.total + '점' })
+          el('td', { className: 'name', text: t.name }),
+          el('td', { className: 'num pts-event', text: t.eventPts }),
+          el('td', { className: 'num pts-bonus', text: t.bonusPts }),
+          el('td', { className: 'num pts-total', text: t.total + '점' })
         ]));
       });
       box.appendChild(el('table', null, [
         el('thead', null, [el('tr', null, [
           el('th', { text: '순위' }), el('th', { text: '반' }),
-          el('th', { className: 'num', text: '참가 종목' }), el('th', { className: 'num', text: '총점' })
+          el('th', { className: 'num', text: '종목' }), el('th', { className: 'num', text: '특별' }),
+          el('th', { className: 'num', text: '총점' })
         ])]),
         tbody
       ]));
@@ -656,13 +794,132 @@
     });
   }
 
+  // ---------- 순위표 애니메이션 ----------
+  // 마지막으로 순위표에서 보여준 점수. 순위표에 다시 들어오면 이 점수에서 새 점수로 움직인다.
+  let shownTotals = null;
+  let animToken = 0; // 다른 화면으로 가면 진행 중인 애니메이션을 멈추는 번호
+
+  function snapshotTotals() {
+    const s = {};
+    computeTotals().forEach(t => { s[t.id] = { eventPts: t.eventPts, bonusPts: t.bonusPts, total: t.total, place: t.place }; });
+    return s;
+  }
+
+  function animateRank() {
+    const token = ++animToken;
+    const prev = shownTotals;
+    shownTotals = snapshotTotals();
+    const now = shownTotals;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!prev || reduceMotion) return;
+
+    const rows = Array.from(document.querySelectorAll('#total-table tbody tr'));
+    if (rows.length === 0) return;
+    const before = id => prev[id] || { eventPts: 0, bonusPts: 0, total: 0, place: null };
+    const changed = rows.some(r => {
+      const a = before(r.dataset.id), b = now[r.dataset.id];
+      return a.total !== b.total || a.eventPts !== b.eventPts || a.bonusPts !== b.bonusPts;
+    });
+    if (!changed) return;
+
+    // 이전 순서: 이전 총점으로 다시 줄 세운다
+    const oldOrder = state.classes.map(c => c.id)
+      .sort((x, y) => before(y).total - before(x).total);
+    const slotTop = rows.map(r => r.offsetTop);
+    const finalHTML = rows.map(r => r.innerHTML);
+    const finalClass = rows.map(r => r.className);
+
+    // 0단계: 이전 자리, 이전 점수로 보여주기
+    rows.forEach((r, i) => {
+      const id = r.dataset.id;
+      const a = before(id);
+      r.className = '';
+      r.querySelector('.place').textContent = a.place ? a.place + '위' : '-';
+      r.querySelector('.pts-event').textContent = a.eventPts;
+      r.querySelector('.pts-bonus').textContent = a.bonusPts;
+      r.querySelector('.pts-total').textContent = a.total + '점';
+      const oldIdx = oldOrder.indexOf(id);
+      r.style.transition = 'none';
+      r.style.transform = 'translateY(' + (slotTop[oldIdx] - slotTop[i]) + 'px)';
+    });
+
+    const HOLD_MS = 600, COUNT_MS = 1200, GAP_MS = 300, MOVE_MS = 1200;
+    const later = (ms, fn) => setTimeout(() => { if (token === animToken) fn(); }, ms);
+
+    // 1단계: 점수가 바뀐 반을 노랗게 표시하고, 숫자가 올라간다
+    later(HOLD_MS, () => {
+      const start = performance.now();
+      const cells = [];
+      rows.forEach(r => {
+        const a = before(r.dataset.id), b = now[r.dataset.id];
+        if (a.total !== b.total) {
+          r.classList.add('changed');
+          const diff = b.total - a.total;
+          const badge = el('span', { className: 'delta', text: (diff > 0 ? '+' : '') + diff });
+          if (diff < 0) badge.style.background = 'var(--bad)';
+          r.querySelector('.name').appendChild(badge);
+        }
+        [['.pts-event', 'eventPts', ''], ['.pts-bonus', 'bonusPts', ''], ['.pts-total', 'total', '점']].forEach(([sel, key, unit]) => {
+          if (a[key] !== b[key]) {
+            const cell = r.querySelector(sel);
+            cell.classList.add('bump');
+            cells.push({ text: cell.firstChild, from: a[key], to: b[key], unit });
+          }
+        });
+      });
+      const tick = t => {
+        if (token !== animToken) return;
+        const k = Math.min(1, (t - start) / COUNT_MS);
+        const ease = 1 - Math.pow(1 - k, 3);
+        cells.forEach(c => { c.text.nodeValue = Math.round(c.from + (c.to - c.from) * ease) + c.unit; });
+        if (k < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    // 2단계: 새 순위 자리로 위아래 이동 (올라가는 반은 파랗게 떠서 지나간다)
+    later(HOLD_MS + COUNT_MS + GAP_MS, () => {
+      rows.forEach((r, i) => {
+        const oldIdx = oldOrder.indexOf(r.dataset.id);
+        if (oldIdx > i) r.classList.add('moving', 'rising');
+        r.querySelector('.place').textContent = now[r.dataset.id].place + '위';
+        r.style.transition = 'transform ' + MOVE_MS + 'ms cubic-bezier(.65, 0, .35, 1)';
+        r.style.transform = '';
+      });
+    });
+
+    // 3단계: 원래 모양으로 돌려놓고, 순위가 바뀐 반에 ▲▼ 표시 (계속 보임)
+    later(HOLD_MS + COUNT_MS + GAP_MS + MOVE_MS + 50, () => {
+      rows.forEach((r, i) => {
+        const a = before(r.dataset.id);
+        const b = now[r.dataset.id];
+        r.style.transition = '';
+        r.style.transform = '';
+        r.innerHTML = finalHTML[i];
+        r.className = finalClass[i];
+        if (a.total !== b.total) r.classList.add('changed');
+        if (a.place && a.place !== b.place) {
+          const up = b.place < a.place;
+          r.querySelector('.name').appendChild(el('span', {
+            className: 'move ' + (up ? 'up' : 'down'),
+            text: (up ? '▲' : '▼') + Math.abs(a.place - b.place)
+          }));
+        }
+      });
+      // 노란 표시는 천천히 사라진다
+      later(1500, () => rows.forEach(r => r.classList.remove('changed')));
+    });
+  }
+
   function renderAll() {
     renderSetup();
     renderInput();
+    renderBonus();
     renderRank();
   }
 
   renderAll();
+  shownTotals = snapshotTotals();
 </script>
 </body>
 </html>
